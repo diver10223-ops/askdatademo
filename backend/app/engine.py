@@ -32,7 +32,8 @@ class Engine:
    self.event(c,'layer.completed',{'layer_code':layer.layer_code,'status':result.status,'output':result.output})
    if result.stop: c.status=result.status; c.termination_reason=result.error_code or result.status; break
    c.status='SUCCEEDED'
-   await asyncio.sleep(0.01)
+   delay=max(0,min(3000,int(c.config.get('system',{}).get('simulation_speed',10))))/1000
+   await asyncio.sleep(delay)
   with connect(PLATFORM_DB) as db:
    db.execute('UPDATE requests SET status=?,last_layer=?,termination_reason=?,completed_at=? WHERE id=?',(c.status,layer.layer_code,c.termination_reason,now(),c.request_id))
    if c.results:

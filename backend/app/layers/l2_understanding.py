@@ -2,12 +2,15 @@ from ..models import LayerResult
 class UnderstandingLayer:
  layer_code='L2'; layer_name='对话理解层'
  async def execute(self,c):
-  q=c.question; role=c.role_id
-  if any(x in q for x in ('身份证','明细','涉密')): return LayerResult('BLOCKED',{'message':'涉密或明细数据已按合规规则拦截'},True,'COMPLIANCE_BLOCKED')
-  if role=='beijing' and any(x in q for x in ('上海分行','全行')): return LayerResult('BLOCKED',{'message':'当前角色仅可查询北京分行'},True,'PERMISSION_DENIED')
-  if role=='retail' and any(x in q for x in ('对公','企业贷款')): return LayerResult('BLOCKED',{'message':'当前角色仅可查询零售信贷指标'},True,'PERMISSION_DENIED')
+  q=c.question; role=c.role_id; permissions=c.permissions or {}; compliance=c.config.get('compliance',{})
+  sensitive=compliance.get('sensitive_words',['身份证','明细','涉密'])
+  if any(x in q for x in sensitive): return LayerResult('BLOCKED',{'message':compliance.get('intercept_message','涉密或明细数据已按合规规则拦截')},True,'COMPLIANCE_BLOCKED')
+  known_orgs={org for item in c.config.get('roles',[]) for org in item.get('orgs',[])} or {'全行','北京分行','上海分行'}; requested_org=next((x for x in known_orgs if x in q),None)
+  if permissions and requested_org and requested_org not in permissions.get('orgs',[]): return LayerResult('BLOCKED',{'message':f'当前角色无权查询{requested_org}'},True,'PERMISSION_DENIED')
+  metric_names={'零售':'零售贷款','对公':'对公贷款','企业贷款':'对公贷款'}; requested_metric=next((v for k,v in metric_names.items() if k in q),None)
+  if permissions and requested_metric and requested_metric not in permissions.get('metrics',[]): return LayerResult('BLOCKED',{'message':f'当前角色无权查询{requested_metric}'},True,'PERMISSION_DENIED')
   if c.scenario_id=='scenario-3' or ('相关数据' in q and '投放金额' not in q):
-   rec={'admin':['全行零售贷款投放','对公贷款规模','各分行贷款占比'],'beijing':['北京分行零售贷款投放','北京分行对公贷款规模'],'retail':['全行零售信贷投放','各分行零售贷款占比']}[role]
+   rec=c.config.get('assets',{}).get('recommendations',{}).get(role,[])
    return LayerResult('SHORT_CIRCUITED',{'recommendations':rec[:3],'message':'请选择更明确的合规问句'},True,'AMBIGUOUS_RECOMMENDATION')
   inherited=c.parameters.copy()
   if '北京分行' in q: inherited['org']='北京分行'
