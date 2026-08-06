@@ -547,6 +547,8 @@ BLOCKED_BEFORE_QUERY
 
 一期排期不按固定人数估算，严格按以下依赖顺序实施：
 
+每项任务的可直接执行提示词、前置依赖、交付物和验收标准见 [PHASE1_TASKS.md](./PHASE1_TASKS.md)。
+
 1. **P0 需求与契约基线**：冻结七层、场景 Schema、请求状态、SSE Schema、错误码和数据库模型。
 2. **P1 工程骨架**：Vue、FastAPI、Dev Container、两个 SQLite、迁移、单端口和启动脚本。
 3. **P2 七层引擎**：统一接口、Context、Session、Request、权限快照、配置锁定和停止执行。
