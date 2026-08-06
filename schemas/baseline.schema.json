@@ -1,1 +1,150 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Official Demo Baseline","type":"object","required":["id","version","immutable","roles","scenarios","warehouse_rows"],"properties":{"id":{"const":"official-demo-baseline-v1"},"version":{"const":1},"immutable":{"const":true},"roles":{"type":"array","minItems":3,"items":{"type":"object","required":["id","name","orgs","metrics"]}},"scenarios":{"type":"array","minItems":8,"maxItems":8,"items":{"type":"object","required":["id","name","cases"]}},"warehouse_rows":{"type":"array"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Official Demo Baseline",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "immutable",
+    "roles",
+    "assets",
+    "scenarios",
+    "compliance",
+    "system",
+    "warehouse_rows"
+  ],
+  "properties": {
+    "id": {
+      "const": "official-demo-baseline-v1"
+    },
+    "version": {
+      "const": 1
+    },
+    "immutable": {
+      "const": true
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "orgs",
+          "metrics",
+          "features"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "admin",
+              "beijing",
+              "retail"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "orgs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "metrics": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "required": [
+        "metrics",
+        "dimensions",
+        "synonyms",
+        "recommendations",
+        "table",
+        "sql_template",
+        "dashboard"
+      ],
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "minItems": 1
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1
+        },
+        "synonyms": {
+          "type": "object"
+        },
+        "recommendations": {
+          "type": "object"
+        },
+        "table": {
+          "const": "dws_loan_aggr_wide"
+        },
+        "sql_template": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dashboard": {
+          "type": "string"
+        }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "name",
+          "cases"
+        ]
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "required": [
+        "sensitive_words",
+        "intercept_message",
+        "max_rows",
+        "masking"
+      ]
+    },
+    "system": {
+      "type": "object",
+      "required": [
+        "title",
+        "welcome",
+        "default_role",
+        "simulation_speed",
+        "show_trace"
+      ]
+    },
+    "warehouse_rows": {
+      "type": "array",
+      "minItems": 1
+    }
+  }
+}
