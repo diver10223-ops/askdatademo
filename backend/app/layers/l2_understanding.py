@@ -17,6 +17,7 @@ class UnderstandingLayer:
   elif '对公' in q: inherited['metric']='corporate_cur'
   elif '贷款' in q: inherited.setdefault('metric','loan_cur')
   if '2026' in q or '去年同期' in q or '为什么' in q: inherited.setdefault('date','2026-03-31')
+  if c.scenario_id=='scenario-7' and c.parent_request_id and 'metric' not in inherited: inherited['metric']='retail_cur' if role=='retail' else 'loan_cur'
   if c.scenario_id=='scenario-7' and not all(k in inherited for k in ('org','date','metric')):
    return LayerResult('WAITING_INPUT',{'message':'请补充机构、时间和指标','options':['2026年3月','全行','北京分行','贷款投放']},True,'MISSING_PARAMETER')
   inherited.setdefault('org','全行' if role!='beijing' else '北京分行'); inherited.setdefault('date','2026-03-31'); inherited.setdefault('metric','retail_cur' if role=='retail' else 'loan_cur')

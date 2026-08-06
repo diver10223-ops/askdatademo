@@ -14,6 +14,7 @@ class Engine:
    n=db.execute('SELECT COALESCE(MAX(event_id),0)+1 FROM sse_events WHERE request_id=?',(c.request_id,)).fetchone()[0]
    db.execute('INSERT INTO sse_events VALUES(?,?,?,?,?)',(c.request_id,n,event_type,json.dumps(payload,ensure_ascii=False),now()))
  async def run(self,c):
+  with connect(PLATFORM_DB) as db: db.execute("UPDATE requests SET status='RUNNING' WHERE id=? AND status='PENDING'",(c.request_id,))
   self.event(c,'request.created',{'request_id':c.request_id})
   for layer in self.layers:
    with connect(PLATFORM_DB) as db:

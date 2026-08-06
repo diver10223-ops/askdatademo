@@ -10,6 +10,7 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run build
 npm --prefix frontend run build:offline
 bash scripts/demo-readiness-check.sh
+PYTHONPATH=backend .venv/bin/python scripts/phase1-matrix.py
 git diff --check
 git status --short
 ```

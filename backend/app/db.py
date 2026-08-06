@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS sql_executions(id INTEGER PRIMARY KEY AUTOINCREMENT,r
 CREATE TABLE IF NOT EXISTS result_snapshots(request_id TEXT PRIMARY KEY REFERENCES requests(id),payload TEXT NOT NULL,masked INTEGER NOT NULL,size_bytes INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,actor TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS provider_configs(id TEXT PRIMARY KEY,type TEXT NOT NULL,status TEXT NOT NULL,config TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS admin_resources(kind TEXT NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(kind,id));
 ''')
  with connect(WAREHOUSE_DB) as c:
   c.executescript('''CREATE TABLE IF NOT EXISTS dws_loan_aggr_wide(stat_dt TEXT NOT NULL,org_name TEXT NOT NULL,loan_cur REAL,loan_last REAL,retail_cur REAL,retail_last REAL,corporate_cur REAL,corporate_last REAL,PRIMARY KEY(stat_dt,org_name)); CREATE INDEX IF NOT EXISTS idx_loan_org_date ON dws_loan_aggr_wide(org_name,stat_dt);''')
@@ -52,6 +53,19 @@ def backup(dest:Path):
  with zipfile.ZipFile(dest,'w') as z:
   z.write(PLATFORM_DB,'platform.db'); z.write(WAREHOUSE_DB,'mock_warehouse.db')
  return dest
+
+def restore_backup(source:Path):
+ if not source.exists(): raise FileNotFoundError(source)
+ with zipfile.ZipFile(source) as z:
+  if set(z.namelist()) != {'platform.db','mock_warehouse.db'}: raise ValueError('invalid backup')
+  extracted=[]
+  for name,target in (('platform.db',PLATFORM_DB),('mock_warehouse.db',WAREHOUSE_DB)):
+   temporary=target.with_suffix('.restore')
+   with z.open(name) as src, temporary.open('wb') as dst: shutil.copyfileobj(src,dst)
+   with connect(temporary) as db:
+    if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok': raise ValueError('invalid database')
+   extracted.append((temporary,target))
+  for temporary,target in extracted: temporary.replace(target)
 
 def full_reset():
  for p in (PLATFORM_DB,WAREHOUSE_DB):

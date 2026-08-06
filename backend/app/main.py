@@ -5,8 +5,8 @@ from fastapi import FastAPI,HTTPException,Request
 from fastapi.responses import StreamingResponse,FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel,Field
-from .config import PLATFORM_DB,BASELINE,ROOT
-from .db import connect,restore_baseline,restore_official_config,migrate,backup,full_reset
+from .config import PLATFORM_DB,WAREHOUSE_DB,BASELINE,ROOT
+from .db import connect,restore_baseline,restore_official_config,migrate,backup,restore_backup,full_reset
 from .engine import Engine
 from .models import PipelineContext
 now=lambda:datetime.now(timezone.utc).isoformat()
@@ -14,8 +14,12 @@ app=FastAPI(title='AskData Phase 1',version='1.0.0'); engine=Engine()
 class SessionIn(BaseModel): role_id:str=Field(pattern='^(admin|beijing|retail)$')
 class QueryIn(BaseModel): session_id:str; question:str=Field(min_length=1,max_length=1000); scenario_id:str|None=None; parent_request_id:str|None=None
 class DraftIn(BaseModel): name:str; payload:dict
+class ResourceIn(BaseModel): id:str=Field(min_length=1,max_length=100); payload:dict; enabled:bool=True
 @app.on_event('startup')
-def startup(): restore_baseline(False)
+def startup():
+ migrate()
+ with connect(WAREHOUSE_DB) as db: empty=db.execute('SELECT COUNT(*) FROM dws_loan_aggr_wide').fetchone()[0]==0
+ restore_baseline(empty)
 @app.get('/api/v1/health')
 def health(): return {'status':'ok','version':'1.0.0','platform_db':PLATFORM_DB.exists()}
 @app.post('/api/v1/sessions',status_code=201)
@@ -112,7 +116,38 @@ def reset(scope:str,confirm:bool=False):
  else: raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'重置范围或确认参数无效'})
  with connect(PLATFORM_DB) as db: db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',(f'RESET_{scope}','admin','{}',now()))
  return {'status':'ok','scope':scope}
+@app.get('/api/v1/admin/config/versions')
+def config_versions():
+ with connect(PLATFORM_DB) as db: return {'items':[dict(x) for x in db.execute('SELECT id,name,status,version,official,created_at FROM config_versions ORDER BY version DESC')]}
+@app.post('/api/v1/admin/config/import',status_code=201)
+def import_config(body:DraftIn):
+ if len(body.payload.get('roles',[]))!=3 or len(body.payload.get('scenarios',[]))!=8: raise HTTPException(422,detail={'code':'INVALID_INPUT','message':'配置必须包含三个角色和八个场景'})
+ return draft(body)
+@app.post('/api/v1/admin/config/{cid}/rollback')
+def rollback(cid:str):
+ with connect(PLATFORM_DB) as db:
+  x=db.execute("SELECT status FROM config_versions WHERE id=?",(cid,)).fetchone()
+  if not x or x['status'] not in ('ARCHIVED','DISABLED'): raise HTTPException(409,detail={'code':'INVALID_INPUT','message':'仅已归档或停用版本可回滚'})
+  db.execute("UPDATE config_versions SET status='ARCHIVED' WHERE status='PUBLISHED'"); db.execute("UPDATE config_versions SET status='PUBLISHED' WHERE id=?",(cid,)); db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('ROLLBACK','admin',json.dumps({'id':cid}),now()))
+ return {'id':cid,'status':'PUBLISHED','affects':'new_sessions_only'}
+@app.get('/api/v1/admin/resources/{kind}')
+def list_resources(kind:str):
+ if kind not in ('roles','assets','flows','scenarios','compliance','operations'): raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'资源类型无效'})
+ with connect(PLATFORM_DB) as db: return {'items':[{**dict(x),'payload':json.loads(x['payload'])} for x in db.execute('SELECT * FROM admin_resources WHERE kind=? ORDER BY id',(kind,))]}
+@app.put('/api/v1/admin/resources/{kind}/{rid}')
+def save_resource(kind:str,rid:str,body:ResourceIn):
+ if kind not in ('roles','assets','flows','scenarios','compliance','operations') or rid!=body.id: raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'资源类型或ID无效'})
+ with connect(PLATFORM_DB) as db:
+  db.execute('INSERT OR REPLACE INTO admin_resources VALUES(?,?,?,?,?)',(kind,rid,json.dumps(body.payload,ensure_ascii=False),int(body.enabled),now())); db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('SAVE_RESOURCE','admin',json.dumps({'kind':kind,'id':rid}),now()))
+ return {'kind':kind,'id':rid,'saved_as':'DRAFT_RESOURCE'}
 @app.post('/api/v1/admin/backup')
 def create_backup(): return {'path':str(backup(ROOT/'backups'/'phase1.zip').relative_to(ROOT))}
+@app.post('/api/v1/admin/backup/restore')
+def restore_last_backup(confirm:bool=False):
+ if not confirm: raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'恢复备份需要确认'})
+ try: restore_backup(ROOT/'backups'/'phase1.zip')
+ except (FileNotFoundError,ValueError): raise HTTPException(422,detail={'code':'INVALID_INPUT','message':'备份不存在或已损坏'})
+ with connect(PLATFORM_DB) as db: db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('RESTORE_BACKUP','admin','{}',now()))
+ return {'status':'ok','restored':'backups/phase1.zip'}
 dist=ROOT/'frontend'/'dist'
 if dist.exists(): app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')
