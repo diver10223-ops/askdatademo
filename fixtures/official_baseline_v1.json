@@ -624,5 +624,22 @@
       "corporate_cur": 310.32,
       "corporate_last": 306.8
     }
-  ]
+  ],
+  "compliance": {
+    "sensitive_words": [
+      "身份证",
+      "明细",
+      "涉密"
+    ],
+    "intercept_message": "涉密或明细数据已按合规规则拦截",
+    "max_rows": 200,
+    "masking": true
+  },
+  "system": {
+    "title": "智能银行问数平台",
+    "welcome": "今天想了解什么经营数据？",
+    "default_role": "admin",
+    "simulation_speed": 120,
+    "show_trace": true
+  }
 }
