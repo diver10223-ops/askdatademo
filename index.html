@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLQ智能银行问数平台 - 权限全场景演示</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: #f5f7fa;
+    }
+    .header {
+      background: #165dff;
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .role-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #roleSelect {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: none;
+      font-size: 14px;
+      outline: none;
+    }
+    .chat-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .msg-item {
+      margin-bottom: 20px;
+    }
+    .user-msg {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .ai-msg {
+      display: flex;
+      justify-content: flex-start;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .user-bubble {
+      max-width: 70%;
+      background: #165dff;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 12px 2px 12px 12px;
+      line-height: 1.5;
+    }
+    .ai-bubble {
+      max-width: 75%;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      padding: 10px 14px;
+      border-radius: 2px 12px 12px 12px;
+      line-height: 1.6;
+    }
+    .result-table-wrap {
+      margin: 10px 0;
+      width: 100%;
+      overflow-x: auto;
+    }
+    .result-table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .result-table th, .result-table td {
+      border: 1px solid #ddd;
+      padding: 6px 10px;
+      font-size: 13px;
+      text-align: center;
+    }
+    .result-table th {
+      background: #e8f3ff;
+      font-weight: 600;
+    }
+    .trace-buttons {
+      margin-top: 8px;
+      display: flex;
+      gap: 10px;
+    }
+    .trace-btn {
+      font-size: 12px;
+      color: #165dff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .trace-btn:hover {
+      background: #e8f3ff;
+    }
+    .panel {
+      width: 75%;
+      margin-top: 6px;
+      background: #f0f3f9;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+      border: 1px solid #dce3f0;
+    }
+    .sql-code {
+      background: #222;
+      color: #42e542;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 6px 0;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .trace-item {
+      margin: 8px 0;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 8px;
+    }
+    .trace-item:last-child {
+      border-bottom: none;
+    }
+    .trace-label {
+      font-weight: bold;
+      color: #165dff;
+    }
+    .warn-text {
+      color: #f53f3f;
+      font-weight: 500;
+    }
+    .tip-text {
+      color: #67c23a;
+      font-weight: 500;
+      margin: 4px 0;
+    }
+    .link-item {
+      display: inline-block;
+      margin: 4px 6px 4px 0;
+      color: #165dff;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .recommend-item {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #f5f7fa;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
+      margin: 4px 6px 4px 0;
+      font-size: 12px;
+      color: #165dff;
+    }
+    .param-ask-box {
+      background: #fff7e6;
+      border: 1px solid #ffe7ba;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+    .quick-chat-bar {
+      padding: 10px 20px;
+      background: #fff;
+      border-top: 1px solid #e5e7eb;
+      flex-shrink: 0;
+    }
+    .quick-chat-title {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .quick-chat-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .quick-chat-btn {
+      padding: 6px 12px;
+      background: #f5f7fa;
+      color: #165dff;
+      border: 1px solid #dcdfe6;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .quick-chat-btn:hover {
+      background: #e8f3ff;
+      border-color: #165dff;
+    }
+    .input-footer {
+      padding: 12px 20px;
+      background: #fff;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .voice-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e8f3ff;
+      border: none;
+      color: #165dff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #inputText {
+      flex: 1;
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid #dcdfe6;
+      border-radius: 20px;
+      outline: none;
+      font-size: 14px;
+    }
+    #sendBtn {
+      padding: 0 18px;
+      height: 40px;
+      background: #165dff;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .scene-tag {
+      display: inline-block;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e8f3ff;
+      color: #165dff;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">NLQ智能银行问数平台｜多角色权限全场景演示</div>
+    <div class="role-box">
+      <span>当前演示身份：</span>
+      <select id="roleSelect">
+        <option value="admin">张总 | 总行领导（全机构+全指标权限）</option>
+        <option value="beijing">李总 | 北京分行（仅本行机构权限）</option>
+        <option value="retail">王总 | 零售主管（仅零售信贷指标权限）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="chat-wrap" id="chatBox"></div>
+
+  <div class="quick-chat-bar">
+    <div class="quick-chat-title">🔥 8大标准演示场景（一键Demo）</div>
+    <div class="quick-chat-buttons">
+      <button class="quick-chat-btn" data-scene="1" data-text="2026年3月上海分行对公贷款投放金额">场景1：基础查数（机构/指标权限）</button>
+      <button class="quick-chat-btn" data-scene="2" data-text="查看全行经营指标分析大盘">场景2：BI驾驶舱跳转</button>
+      <button class="quick-chat-btn" data-scene="3" data-text="查一下2026年3月银行贷款相关数据">场景3：模糊问句兜底推荐</button>
+      <button class="quick-chat-btn" data-scene="4" data-text="2026年3月北京分行贷款投放同比去年变化">场景4：同比归因分析</button>
+      <button class="quick-chat-btn" data-scene="5" data-text="查询上海分行2026年3月对公贷款数据">场景5：越权权限拦截</button>
+      <button class="quick-chat-btn" data-scene="6" data-text="2026年3月北京分行零售贷款投放金额">场景6：多轮上下文追问</button>
+      <button class="quick-chat-btn" data-scene="7" data-text="查询贷款投放同比数据">场景7：缺失参数交互式补全</button>
+      <button class="quick-chat-btn" data-scene="8" data-text="2026年3月全行对公贷款投放金额">场景8：纯取数+二次归因连贯会话</button>
+    </div>
+  </div>
+
+  <div class="input-footer">
+    <button class="voice-btn" id="voiceBtn">🎤</button>
+    <input type="text" id="inputText" placeholder="输入自然语言提问，支持8大场景、多轮追问、权限校验">
+    <button id="sendBtn">发送提问</button>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById('chatBox');
+    const inputText = document.getElementById('inputText');
+    const sendBtn = document.getElementById('sendBtn');
+    const roleSelect = document.getElementById('roleSelect');
+    let currentRole = "admin";
+    let sessionContext = null;
+
+    roleSelect.addEventListener('change', () => {
+      currentRole = roleSelect.value;
+      sessionContext = null;
+      chatBox.innerHTML = "";
+      addAiMsg("✅ 已切换演示角色，清空历史会话与权限缓存，可重新开始全场景演示。", "", [], "", "");
+    })
+
+    document.querySelectorAll('.quick-chat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.getAttribute('data-text');
+        const scene = btn.getAttribute('data-scene');
+        sendQuery(text, scene);
+      })
+    })
+
+    sendBtn.addEventListener('click', () => {
+      const val = inputText.value.trim();
+      if (!val) return;
+      sendQuery(val, "custom");
+      inputText.value = "";
+    })
+
+    inputText.addEventListener('keydown', e => {
+      if (e.key === "Enter") sendBtn.click();
+    })
+
+    document.getElementById('voiceBtn').addEventListener('click', () => {
+      alert("语音模拟成功：已自动转文字");
+      inputText.value = "2026年3月各分行零售贷款同比变化";
+    })
+
+    function sendQuery(text, sceneId = "") {
+      addUserMsg(text);
+      setTimeout(() => {
+        const res = buildAiReply(text, currentRole, sceneId);
+        addAiMsg(res.content, res.sql, res.traceList, res.tableHtml, res.extraHtml);
+      }, 600);
+    }
+
+    function addUserMsg(text) {
+      const div = document.createElement('div');
+      div.className = "msg-item user-msg";
+      div.innerHTML = `<div class="user-bubble">${text}</div>`;
+      chatBox.appendChild(div);
+      scrollBottom();
+    }
+
+    function addAiMsg(content, sql = "", traceList = [], tableHtml = "", extraHtml = "") {
+      const div = document.createElement('div');
+      div.className = "msg-item ai-msg";
+      let traceHtml = "";
+      traceList.forEach(item => {
+        traceHtml += `
+        <div class="trace-item">
+          <div class="trace-label">${item.name}</div>
+          <div>入参：${item.input}</div>
+          <div>输出：${item.output}</div>
+        </div>`
+      })
+      div.innerHTML = `
+        <div class="ai-bubble">
+          ${content}
+          ${extraHtml ? extraHtml : ""}
+          ${tableHtml ? `<div class="result-table-wrap">${tableHtml}</div>` : ""}
+        </div>
+        <div class="trace-buttons">
+          <button class="trace-btn traceSqlBtn">展开接口SQL日志</button>
+          <button class="trace-btn traceTraceBtn">展开NLQ七层执行轨迹</button>
+        </div>
+        <div class="panel sqlPanel">
+          <strong>生成ClickHouse SQL：</strong>
+          <div class="sql-code">${sql}</div>
+          <div>执行数据源：nlq_test_db.dws_loan_aggr_wide</div>
+          <div style="margin-top:6px;color:#666;">👉 严格遵循NLQ七层架构生成，权限过滤前置生效</div>
+        </div>
+        <div class="panel tracePanel">
+          <strong>NLQ七层架构执行链路（每层入参/输出/权限逻辑）</strong>
+          ${traceHtml}
+        </div>
+      `;
+      chatBox.appendChild(div);
+      scrollBottom();
+
+      const sqlBtn = div.querySelector('.traceSqlBtn');
+      const traceBtn = div.querySelector('.traceTraceBtn');
+      const sqlPanel = div.querySelector('.sqlPanel');
+      const tracePanel = div.querySelector('.tracePanel');
+      sqlBtn.onclick = () => sqlPanel.style.display = sqlPanel.style.display === "block" ? "none" : "block";
+      traceBtn.onclick = () => tracePanel.style.display = tracePanel.style.display === "block" ? "none" : "block";
+    }
+
+    function scrollBottom() {
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function getNormalTrace(question, roleName) {
+      return [
+        { name: "1.输入解析层", input: `原始问句：${question}`, output: "清洗文本、提取有效查询语义，输出标准化问句" },
+        { name: "2.对话理解层【权限核心层】", input: `标准化问句 + 当前角色：${roleName}（权限池挂载生效）`, output: "抽取机构/时间/指标维度，完成权限校验、参数合法性校验" },
+        { name: "3.语义转换层", input: "业务参数+元数据权限过滤", output: "生成带权限约束的查询逻辑树" },
+        { name: "4.SQL校验层", input: "权限约束逻辑树", output: "语法校验、字段权限过滤，生成合规SQL" },
+        { name: "5.数据源路由层", input: "合规表名标识", output: "路由至nlq_test_db.dws_loan_aggr_wide" },
+        { name: "6.ClickHouse执行层", input: "权限过滤后SQL", output: "返回权限范围内原始数据集" },
+        { name: "7.结果组装层", input: "合规数据集", output: "生成业务解读、表格数据，自适应角色权限输出" }
+      ]
+    }
+
+    function getInterceptTrace(question, interceptReason, roleName) {
+      return [
+        { name: "1.输入解析层", input: `原始问句：${question}`, output: "完成文本清洗、语义识别，判定为合法业务查询意图" },
+        { name: "2.对话理解层【权限前置拦截核心】", input: `标准化查询参数 + 当前登录角色：${roleName} + 角色权限池快照`, output: `执行双重权限校验（机构权限+指标权限），校验不通过：${interceptReason}，立即终止全链路` },
+        { name: "3.语义转换层", input: "无合法入参（链路已拦截）", output: "短路语义解析、逻辑树生成流程" },
+        { name: "4.SQL生成层", input: "无入参", output: "不生成任何查询SQL，杜绝无效数据库请求" },
+        { name: "5.数据源路由层", input: "无入参", output: "不路由数仓、不访问ClickHouse测试库" },
+        { name: "6.数据执行层", input: "无入参", output: "无数据查询、无数据返回，从源头规避数据泄露" },
+        { name: "7.结果封装与溯源层", input: "拦截节点日志", output: "封装标准化权限拦截话术，记录拦截原因、角色权限、命中规则，链路可审计可溯源" }
+      ]
+    }
+
+    function getParamMissTrace(question, missParams) {
+      return [
+        { name: "1.输入解析层", input: `原始问句：${question}`, output: "完成文本解析，识别业务查询意图" },
+        { name: "2.对话理解层【参数校验】", input: "查询参数集合", output: `检测到必填参数缺失：${missParams}，中断链路，发起交互式补全` },
+        { name: "3-7 后置所有层级", input: "无入参", output: "等待用户补充参数，暂不执行查询" }
+      ]
+    }
+
+    function buildAiReply(question, role, scene) {
+      let roleName = "";
+      if (role === "admin") roleName = "张总-总行全权限";
+      if (role === "beijing") roleName = "李总-北京分行专属权限";
+      if (role === "retail") roleName = "王总-零售信贷专项权限";
+
+      let intercept = false;
+      let interceptMsg = "";
+      let interceptReason = "";
+
+      if (/(\u5929\u6c14|\u65f6\u95f4|\u7b11\u8bdd|\u65b0\u95fb)/.test(question)) {
+        intercept = true;
+        interceptReason = "非法业务意图，仅支持经营指标查询";
+        interceptMsg = `<div class="warn-text">❌ 非法问句拦截：系统仅支持银行经营指标查询，不支持非业务类咨询</div>`;
+      }
+
+      if (role === "beijing" && !intercept) {
+        if (question.includes("上海分行") || question.includes("全行") || question.includes("总行汇总")) {
+          intercept = true;
+          interceptReason = "机构权限隔离：北京分行账号禁止访问全行/外机构数据";
+          interceptMsg = `<div class="warn-text">❌ 机构越权拦截（场景5安全合规演示）</div><p>当前登录角色为北京分行专属权限，仅可查询本机构经营数据，已拦截跨机构（上海分行/全行）越权查询请求。</p><p class="tip-text">✅ 架构能力：对话理解层前置拦截，未生成SQL、未访问数仓，杜绝跨机构数据泄露，完全贴合银行分级管控规范。</p>`;
+        }
+      }
+
+      if (role === "retail" && !intercept) {
+        if (question.includes("对公") || question.includes("企业贷款") || question.includes("公司存款")) {
+          intercept = true;
+          interceptReason = "指标权限隔离：零售账号禁止访问对公业务指标";
+          interceptMsg = `<div class="warn-text">❌ 指标越权拦截（场景5安全合规演示）</div><p>当前登录角色为零售信贷专项权限，仅开放个人信贷、零售类指标权限，已拦截对公企业类越权指标查询请求。</p><p class="tip-text">✅ 架构能力：支持指标级精细化权限管控，区别于粗粒度机构权限，实现条线业务数据精准隔离。</p>`;
+        }
+      }
+
+      if (role === "admin" && scene === "5" && !intercept) {
+        intercept = true;
+        interceptReason = "合规涉密拦截：全行全权限角色禁止查询涉密明细数据";
+        interceptMsg = `<div class="warn-text">❌ 涉密合规拦截（场景5安全合规演示）</div><p>当前为总行全权限角色，系统严格执行合规拦截规则：<strong>所有角色统一拦截涉密、明细、违规查询</strong>，权限高低不影响合规底线。</p><p class="tip-text">✅ 架构能力：合规拦截优先级高于所有权限，实现全域业务安全兜底，保障系统合规运行。</p>`;
+      }
+
+      if (intercept) {
+        return {
+          content: interceptMsg,
+          sql: "无SQL（对话理解层前置拦截，全链路短路，无数据库访问行为）",
+          traceList: getInterceptTrace(question, interceptReason, roleName),
+          tableHtml: "",
+          extraHtml: ""
+        }
+      }
+
+      if (scene === "7" || /查询.*(同比|数据)$/.test(question) && !question.includes("2026")) {
+        const missParams = "统计时间、查询机构";
+        let paramHtml = `
+        <div class="param-ask-box">
+          <strong>💡 参数缺失补充提示</strong>
+          <p>当前查询缺少【统计时间】【查询机构】必填参数，请补充：</p>
+          <p>1. 需要查询的机构（总行/北京分行）</p>
+          <p>2. 需要查询的统计周期（如：2026年3月、近三个月）</p>
+        </div>
+        `;
+        return {
+          content: "检测到查询参数不完整，无法直接执行查询，请补充以下信息：",
+          sql: "无SQL（参数缺失，中断链路）",
+          traceList: getParamMissTrace(question, missParams),
+          tableHtml: "",
+          extraHtml: paramHtml
+        }
+      }
+
+      if (scene === "2") {
+        let linkHtml = `<p>✅ 已识别经营大盘跳转意图，语义层短路数据查询链路</p><div>`;
+        if (role === "admin") {
+          linkHtml += `<span class="link-item">🔗 总行经营指标分析驾驶舱</span><span class="link-item">🔗 各分行经营大盘总览</span>`;
+        } else if (role === "beijing") {
+          linkHtml += `<span class="link-item">🔗 北京分行专属经营分析驾驶舱</span><p class="warn-text">已自动过滤全行/其他分行看板权限</p>`;
+        } else {
+          linkHtml += `<span class="link-item">🔗 零售信贷专项经营驾驶舱</span><p class="warn-text">已自动过滤对公业务看板权限</p>`;
+        }
+        linkHtml += `</div>`;
+        return {
+          content: `<span class="scene-tag">场景2：驾驶舱权限跳转</span>根据当前角色权限，为您匹配可访问的经营大盘：`,
+          sql: "无SQL（语义层短路，无需查询数仓）",
+          traceList: getNormalTrace(question, roleName),
+          tableHtml: "",
+          extraHtml: linkHtml
+        }
+      }
+
+      if (scene === "3") {
+        let recommendHtml = `<p>⚠️ 未识别标准化指标口径，无法直接查询</p><p>可尝试以下【权限适配后】标准提问：</p><div>`;
+        let recommendList = [];
+        if (role === "admin") {
+          recommendList = ["2026年3月全行零售贷款投放", "2026年3月对公贷款规模", "各分行贷款投放占比"];
+        } else if (role === "beijing") {
+          recommendList = ["2026年3月北京分行零售贷款投放", "2026年3月北京分行对公贷款规模"];
+        } else {
+          recommendList = ["2026年3月全行零售信贷投放", "2026年3月各分行零售贷款占比"];
+        }
+        recommendList.forEach(item => {
+          recommendHtml += `<span class="recommend-item">${item}</span>`;
+        })
+        recommendHtml += `</div>`;
+        return {
+          content: `<span class="scene-tag">场景3：模糊权限推荐</span>`,
+          sql: "无SQL（指标模糊，短路查询链路）",
+          traceList: getNormalTrace(question, roleName),
+          tableHtml: "",
+          extraHtml: recommendHtml
+        }
+      }
+
+      if (scene === "1") {
+        let sql = `SELECT org_name,stat_dt,corp_cur,q1_cur_amt FROM nlq_test_db.dws_loan_aggr_wide WHERE stat_dt='2026-03-31'`;
+        let tableHtml = "";
+        let desc = "";
+        if (role === "admin") {
+          sql += ` AND org_name='上海分行'`;
+          tableHtml = `
+          <table class="result-table">
+            <thead><tr><th>机构</th><th>统计日期</th><th>对公贷款投放</th><th>总投放</th></tr></thead>
+            <tbody><tr><td>上海分行</td><td>2026-03-31</td><td>436.20</td><td>986.40</td></tr></tbody>
+          </table>`;
+          desc = "✅ 总行全权限：正常查询外机构对公指标数据，无权限拦截";
+        }
+        return {
+          content: `<span class="scene-tag">场景1：基础权限查数</span>${desc}`,
+          sql,
+          traceList: getNormalTrace(question, roleName),
+          tableHtml,
+          extraHtml: ""
+        }
+      }
+
+      if (scene === "4") {
+        let sql = `SELECT org_name,q1_cur_amt,q1_last_year_amt,round((q1_cur_amt-q1_last_year_amt)/q1_last_year_amt*100,2) AS yoy_rate FROM nlq_test_db.dws_loan_aggr_wide WHERE stat_dt='2026-03-31' AND org_name='北京分行'`;
+        let tableHtml = `
+        <table class="result-table">
+          <thead><tr><th>机构</th><th>本期投放</th><th>去年同期</th><th>同比增速</th></tr></thead>
+          <tbody><tr><td>北京分行</td><td>360.73</td><td>385.20</td><td>-6.35%</td></tr></tbody>
+        </table>`;
+        let desc = `<p>✅ 归因分析结论：2026年3月北京分行贷款投放同比小幅下降，主要系阶段性对公业务投放收缩导致，零售板块保持平稳。</p>`;
+        return {
+          content: `<span class="scene-tag">场景4：权限归因分析</span>已为您生成权限范围内同比数据及业务解读：`,
+          sql,
+          traceList: getNormalTrace(question, roleName),
+          tableHtml,
+          extraHtml: desc
+        }
+      }
+
+      if (scene === "6") {
+        if (!sessionContext) {
+          sessionContext = { org: "北京分行", time: "2026年3月", index: "零售贷款投放" };
+          let firstTable = `
+          <table class="result-table">
+            <thead><tr><th>机构</th><th>统计时间</th><th>零售贷款投放</th></tr></thead>
+            <tbody><tr><td>北京分行</td><td>2026年3月</td><td>80.15</td></tr></tbody>
+          </table>`;
+          return {
+            content: `<span class="scene-tag">场景6：多轮上下文会话</span>首轮查询结果（已锁定当前角色权限域），可继续追问同比、环比数据`,
+            sql: `SELECT retail_cur FROM nlq_test_db.dws_loan_aggr_wide WHERE org_name='北京分行' AND stat_dt='2026-03-31'`,
+            traceList: getNormalTrace(question, roleName),
+            tableHtml: firstTable,
+            extraHtml: `<p class="tip-text">💡 已缓存上下文：机构【北京分行】、指标【零售贷款】，下轮追问无需重复输入</p>`
+          }
+        } else {
+          let tableHtml = `
+          <table class="result-table">
+            <thead><tr><th>机构</th><th>本期零售投放</th><th>去年同期</th><th>同比变化</th></tr></thead>
+            <tbody><tr><td>北京分行</td><td>80.15</td><td>76.80</td><td>+4.35%</td></tr></tbody>
+          </table>`;
+          return {
+            content: `<span class="scene-tag">场景6：上下文追问</span>自动复用历史查询参数，权限域锁定生效：`,
+            sql: `SELECT retail_cur,q1_last_year_retail FROM nlq_test_db.dws_loan_aggr_wide WHERE org_name='北京分行' AND stat_dt='2026-03-31'`,
+            traceList: getNormalTrace(question, roleName),
+            tableHtml,
+            extraHtml: `<p>✅ 上下文继承成功：自动复用【北京分行+零售贷款】参数，无需重复输入</p>`
+          }
+        }
+      }
+
+      if (scene === "8") {
+        if (!sessionContext || !sessionContext.firstQuery) {
+          sessionContext = { firstQuery: true, org: "全行", time: "2026年3月", index: "对公贷款投放" };
+          let tableHtml = `
+          <table class="result-table">
+            <thead><tr><th>统计时间</th><th>全行对公贷款总投放</th></tr></thead>
+            <tbody><tr><td>2026年3月</td><td>1253.30亿元</td></tr></tbody>
+          </table>`;
+          return {
+            content: `<span class="scene-tag">场景8：双场景连贯会话-首轮纯取数</span>已完成基础数据查询，可追问数据波动原因`,
+            sql: `SELECT sum(corp_cur) AS total_corp FROM nlq_test_db.dws_loan_aggr_wide WHERE stat_dt='2026-03-31'`,
+            traceList: getNormalTrace(question, roleName),
+            tableHtml,
+            extraHtml: `<p class="tip-text">💡 可继续提问：「一季度对公投放为什么下降」触发二次归因分析</p>`
+          }
+        } else {
+          let tableHtml = `
+          <table class="result-table">
+            <thead><tr><th>统计周期</th><th>全行对公投放</th><th>同比变动</th></tr></thead>
+            <tbody><tr><td>2026年3月</td><td>1253.30亿元</td><td rowspan="2">-3.12%</td></tr><tr><td>2025年3月</td><td>1293.70亿元</td></tr></tbody>
+          </table>`;
+          let desc = `<p>📊 二次归因结论：本期全行对公贷款投放小幅下降，主要受中小微企业阶段性放款节奏放缓影响，大型企业对公投放基本持平，整体经营投放态势平稳。</p>`;
+          sessionContext = null;
+          return {
+            content: `<span class="scene-tag">场景8：双场景连贯会话-二次归因</span>基于上轮取数结果，自动扩展同比维度完成深度分析：`,
+            sql: `SELECT sum(corp_cur) AS cur,sum(corp_last_year) AS last FROM nlq_test_db.dws_loan_aggr_wide WHERE stat_dt='2026-03-31'`,
+            traceList: getNormalTrace(question, roleName),
+            tableHtml,
+            extraHtml: desc
+          }
+        }
+      }
+
+      return {
+        content: "✅ 查询执行成功，已基于当前角色权限返回合规数据结果",
+        sql: `SELECT * FROM nlq_test_db.dws_loan_aggr_wide WHERE stat_dt='2026-03-31'`,
+        traceList: getNormalTrace(question, roleName),
+        tableHtml: "",
+        extraHtml: ""
+      }
+    }
+  </script>
+</body>
+</html>

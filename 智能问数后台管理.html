@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NLQ智能银行问数平台 - 系统后台管理</title>
+<style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif;}
+    body{background:#f1f3f6;color:#333;overflow:hidden;}
+
+    /* 全局变量：统一蓝色 */
+    :root{
+        --primary-blue:#165dff;
+        --icon-bg:#f5f7fa;
+        --icon-line:#165dff;
+        --text-gray:#333;
+        --text-light:#666;
+        --border-color:#e5e7eb;
+    }
+
+    /* 整体布局容器 */
+    .admin-container{display:flex;width:100vw;height:100vh;}
+
+    /* 左侧侧边栏 */
+    .sidebar{width:180px;background:#ffffff;transition: width 0.3s ease;flex-shrink:0;border-right:1px solid var(--border-color);overflow-y:auto;}
+    .sidebar.collapse{width:54px;}
+    .sidebar-logo{height:60px;line-height:60px;text-align:center;font-size:16px;font-weight:bold;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:center;gap:8px;color:var(--primary-blue);}
+    .sidebar.collapse .logo-text{display:none;}
+
+    /* 收缩按钮 */
+    .collapse-btn{width:100%;height:40px;border:none;background:var(--icon-bg);cursor-pointer;font-size:18px;color:var(--primary-blue);border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:center;}
+
+    /* 菜单通用样式 */
+    .menu-list{padding:10px 0;}
+    .menu-group{margin:4px 10px;border-radius:6px;overflow:hidden;}
+    .sidebar.collapse .menu-group{margin:4px 4px;}
+
+    .menu-parent{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        height:42px;
+        padding:0 14px;
+        color:var(--text-gray);
+        font-size:14px;
+        cursor:pointer;
+        transition:all 0.2s;
+        border-radius:6px;
+        gap:8px;
+    }
+
+    /* 统一图标：灰色背景，蓝色线条 */
+    .menu-icon{
+        width:24px;
+        height:24px;
+        border-radius:6px;
+        background:var(--icon-bg);
+        color:var(--icon-line);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:14px;
+        font-weight:bold;
+        line-height:1;
+        flex-shrink:0;
+    }
+
+    .sidebar.collapse .menu-parent{padding:0;justify-content:center;}
+    .sidebar.collapse .menu-parent .menu-text{display:none;}
+
+    .menu-parent .menu-text{text-align:left;white-space:nowrap;color:var(--text-gray);}
+    .menu-parent:hover,.menu-parent.active{background:#e8f3ff;color:var(--primary-blue);}
+    .menu-parent:hover .menu-icon,.menu-parent.active .menu-icon{background:var(--primary-blue);color:#fff;}
+
+    .menu-parent .arrow{transition:transform 0.2s;font-size:12px;color:var(--primary-blue);}
+    .menu-parent.arrow-down .arrow{transform:rotate(90deg);}
+
+    /* 二级子菜单 */
+    .sub-menu{display:none;background:#f9fafc;}
+    .sub-item a{display:block;height:38px;padding-left:32px;color:var(--text-light);text-decoration:none;font-size:13px;line-height:38px;text-align:left;transition:all 0.2s;border-radius:6px;margin:0 6px;}
+    .sub-item a:hover,.sub-item a.active{background:#e8f3ff;color:var(--primary-blue);}
+    .sidebar.collapse .sub-menu{display:none !important;}
+
+    /* 右侧主内容区域 */
+    .main-wrap{flex:1;display:flex;flex-direction:column;height:100vh;}
+
+    /* 顶部用户信息栏 */
+    .admin-header{height:60px;background:#fff;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;padding:0 24px;}
+    .header-left{display:flex;align-items:center;gap:20px;}
+    .header-right{display:flex;align-items:center;gap:24px;position:relative;}
+
+    .notify{
+        width:24px;
+        height:24px;
+        border-radius:6px;
+        background:var(--icon-bg);
+        color:var(--primary-blue);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        font-size:14px;
+    }
+
+    .user-box{position:relative;cursor:pointer;display:flex;align-items:center;gap:6px;}
+    .user-dropdown{position:absolute;top:50px;right:0;width:160px;background:#fff;border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0.1);display:none;z:999;}
+    .user-dropdown.show{display:block;}
+    .dropdown-item{height:38px;line-height:38px;padding:0 16px;font-size:14px;cursor-pointer;text-align:left;}
+    .dropdown-item:hover{background:#f5f7fa;}
+    .split-line{height:1px;background:#eee;margin:4px 0;}
+
+    /* 功能标签栏 */
+    .tabs-bar{height:44px;background:#fff;border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 12px;gap:8px;overflow-x:auto;}
+    .tab-item{height:30px;padding:0 12px;background:#f5f7fa;border-radius:4px;display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;white-space:nowrap;}
+    .tab-item.active{background:var(--primary-blue);color:#fff;}
+    .tab-close{width:16px;height:16px;text-align:center;line-height:16px;border-radius:50%;font-size:12px;}
+    .tab-close:hover{background:rgba(0,0,0,0.1);}
+    .tab-all-close{margin-left:12px;color:var(--primary-blue);font-size:13px;cursor:pointer;white-space:nowrap;}
+
+    /* 主体内容区 */
+    .content-wrap{flex:1;padding:20px;overflow:auto;}
+    .content-card{background:#fff;border-radius:8px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0.06);}
+    .empty-tip{color:#999;font-size:14px;text-align:center;padding:60px 0;}
+</style>
+</head>
+<body>
+<div class="admin-container">
+    <!-- 左侧侧边栏 -->
+    <div class="sidebar" id="sidebarWrap">
+        <div class="sidebar-logo">
+            <span class="menu-icon">N</span>
+            <span class="logo-text">NLQ后台</span>
+        </div>
+
+        <!-- 收缩按钮 -->
+        <button class="collapse-btn" id="collapseBtn">⇋</button>
+
+        <div class="menu-list">
+            <!-- 首页 -->
+            <div class="menu-group">
+                <div class="menu-parent active">
+                    <span class="menu-icon">H</span>
+                    <span class="menu-text">首页</span>
+                    <span class="arrow"></span>
+                </div>
+            </div>
+
+            <!-- 权限管理 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">R</span>
+                    <span class="menu-text">权限管理</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">角色管理</a></div>
+                    <div class="sub-item"><a href="#">账号管理</a></div>
+                    <div class="sub-item"><a href="#">权限配置</a></div>
+                </div>
+            </div>
+
+            <!-- 资产管理 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">A</span>
+                    <span class="menu-text">资产管理</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">指标字典</a></div>
+                    <div class="sub-item"><a href="#">维度字典</a></div>
+                    <div class="sub-item"><a href="#">推荐词库</a></div>
+                </div>
+            </div>
+
+            <!-- 流程配置 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">P</span>
+                    <span class="menu-text">流程配置</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">意图规则</a></div>
+                    <div class="sub-item"><a href="#">SQL模板</a></div>
+                    <div class="sub-item"><a href="#">会话配置</a></div>
+                    <div class="sub-item"><a href="#">参数校验</a></div>
+                </div>
+            </div>
+
+            <!-- 场景管理 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">S</span>
+                    <span class="menu-text">场景管理</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">标准场景</a></div>
+                    <div class="sub-item"><a href="#">快捷按钮</a></div>
+                    <div class="sub-item"><a href="#">驾驶舱</a></div>
+                </div>
+            </div>
+
+            <!-- 日志管理 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">L</span>
+                    <span class="menu-text">日志管理</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">会话记录</a></div>
+                    <div class="sub-item"><a href="#">执行轨迹</a></div>
+                    <div class="sub-item"><a href="#">SQL审计</a></div>
+                    <div class="sub-item"><a href="#">操作日志</a></div>
+                </div>
+            </div>
+
+            <!-- 合规管控 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">C</span>
+                    <span class="menu-text">合规管控</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">涉密管控</a></div>
+                    <div class="sub-item"><a href="#">访问限流</a></div>
+                    <div class="sub-item"><a href="#">数据脱敏</a></div>
+                    <div class="sub-item"><a href="#">拦截话术</a></div>
+                </div>
+            </div>
+
+            <!-- 运维配置 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">O</span>
+                    <span class="menu-text">运维配置</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">界面配置</a></div>
+                    <div class="sub-item"><a href="#">定时任务</a></div>
+                    <div class="sub-item"><a href="#">系统参数</a></div>
+                    <div class="sub-item"><a href="#">告警设置</a></div>
+                </div>
+            </div>
+
+            <!-- 大模型配置 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">M</span>
+                    <span class="menu-text">大模型配置</span>
+                    <span class="arrow"></span>
+                </div>
+            </div>
+
+            <!-- 数据源配置 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">D</span>
+                    <span class="menu-text">数据源配置</span>
+                    <span class="arrow"></span>
+                </div>
+            </div>
+
+            <!-- Mock管理 -->
+            <div class="menu-group">
+                <div class="menu-parent">
+                    <span class="menu-icon">K</span>
+                    <span class="menu-text">Mock管理</span>
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-item"><a href="#">模拟数据</a></div>
+                    <div class="sub-item"><a href="#">演示开关</a></div>
+                    <div class="sub-item"><a href="#">话术维护</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧整体区域 -->
+    <div class="main-wrap">
+        <!-- 顶部用户信息栏 -->
+        <div class="admin-header">
+            <div class="header-left"></div>
+            <div class="header-right">
+                <div class="notify">🔔</div>
+                <div class="user-box" id="userBox">
+                    <span>管理员admin</span>
+                    <span>▼</span>
+                    <div class="user-dropdown" id="userDrop">
+                        <div class="dropdown-item">用户信息设置</div>
+                        <div class="dropdown-item">密码修改设置</div>
+                        <div class="split-line"></div>
+                        <div class="dropdown-item">系统退出登录</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能标签栏 -->
+        <div class="tabs-bar" id="tabsBar">
+            <div class="tab-item active" data-name="首页">
+                首页
+                <span class="tab-close" style="display:none;"></span>
+            </div>
+            <div class="tab-all-close" id="closeAll">全部关闭标签</div>
+        </div>
+
+        <!-- 主体内容区域 -->
+        <div class="content-wrap">
+            <div class="content-card">
+                <div class="empty-tip">请点击左侧菜单栏选择/或者上部的菜单标签区域切换展示对应管理功能页面</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 1. 侧边栏收缩切换
+const sidebarWrap = document.getElementById('sidebarWrap');
+const collapseBtn = document.getElementById('collapseBtn');
+collapseBtn.onclick = ()=>{
+    sidebarWrap.classList.toggle('collapse');
+}
+
+// 2. 一级菜单展开收起
+const parents = document.querySelectorAll(".menu-parent");
+const tabBar = document.getElementById('tabsBar');
+const contentTip = document.querySelector('.empty-tip');
+let openTabs = new Set(["首页"]);
+
+parents.forEach(parent=>{
+    parent.addEventListener("click",function(e){
+        const subDom = this.nextElementSibling;
+        const menuName = this.querySelector('.menu-text').innerText;
+        if(subDom && subDom.className === "sub-menu"){
+            this.classList.toggle("arrow-down");
+            subDom.style.display = subDom.style.display === "block" ? "none" : "block";
+            return;
+        }
+        switchTab(menuName);
+    })
+})
+
+// 3. 二级子菜单点击
+const subLinks = document.querySelectorAll(".sub-item a");
+subLinks.forEach(link=>{
+    link.addEventListener("click",function(e){
+        e.stopPropagation();
+        const name = this.innerText;
+        switchTab(name);
+    })
+})
+
+// 切换标签函数
+function switchTab(name){
+    document.querySelectorAll(".menu-parent").forEach(p=>p.classList.remove("active"));
+    document.querySelectorAll(".sub-item a").forEach(l=>l.classList.remove("active"));
+    if(!openTabs.has(name)){
+        openTabs.add(name);
+        const tabDom = document.createElement('div');
+        tabDom.className = 'tab-item';
+        tabDom.dataset.name = name;
+        tabDom.innerHTML = `${name}<span class="tab-close">×</span>`;
+        tabDom.querySelector('.tab-close').onclick = (ev)=>{
+            ev.stopPropagation();
+            openTabs.delete(name);
+            tabDom.remove();
+            if(tabDom.classList.contains('active')) switchTab("首页");
+        }
+        tabDom.onclick = ()=> switchTab(name);
+        tabBar.insertBefore(tabBar.lastChild, tabDom);
+    }
+    document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+    document.querySelector(`.tab-item[data-name="${name}"]`).classList.add('active');
+    contentTip.innerText = `当前功能页面：${name}，此处展示对应管理功能`;
+}
+
+// 一键关闭所有标签
+document.getElementById('closeAll').onclick = ()=>{
+    document.querySelectorAll('.tab-item').forEach(t=>{
+        if(t.dataset.name !== "首页") t.remove();
+    })
+    openTabs.clear();
+    openTabs.add("首页");
+    switchTab("首页");
+}
+
+// 用户下拉弹窗控制
+const userBox = document.getElementById('userBox');
+const userDrop = document.getElementById('userDrop');
+userBox.onclick = (e)=>{
+    e.stopPropagation();
+    userDrop.classList.toggle('show');
+}
+document.body.onclick = ()=> userDrop.classList.remove('show');
+</script>
+</body>
+</html>
