@@ -1,0 +1,118 @@
+import asyncio,json,os,uuid
+from datetime import datetime,timezone
+from pathlib import Path
+from fastapi import FastAPI,HTTPException,Request
+from fastapi.responses import StreamingResponse,FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel,Field
+from .config import PLATFORM_DB,BASELINE,ROOT
+from .db import connect,restore_baseline,restore_official_config,migrate,backup,full_reset
+from .engine import Engine
+from .models import PipelineContext
+now=lambda:datetime.now(timezone.utc).isoformat()
+app=FastAPI(title='AskData Phase 1',version='1.0.0'); engine=Engine()
+class SessionIn(BaseModel): role_id:str=Field(pattern='^(admin|beijing|retail)$')
+class QueryIn(BaseModel): session_id:str; question:str=Field(min_length=1,max_length=1000); scenario_id:str|None=None; parent_request_id:str|None=None
+class DraftIn(BaseModel): name:str; payload:dict
+@app.on_event('startup')
+def startup(): restore_baseline(False)
+@app.get('/api/v1/health')
+def health(): return {'status':'ok','version':'1.0.0','platform_db':PLATFORM_DB.exists()}
+@app.post('/api/v1/sessions',status_code=201)
+def create_session(body:SessionIn):
+ sid=str(uuid.uuid4()); ps=str(uuid.uuid4())
+ with connect(PLATFORM_DB) as db:
+  role=db.execute('SELECT permissions FROM roles WHERE id=? AND enabled=1',(body.role_id,)).fetchone()
+  if not role: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'角色不存在或已停用'})
+  cfg=db.execute("SELECT id FROM config_versions WHERE status='PUBLISHED'").fetchone()
+  db.execute('INSERT INTO sessions(id,role_id,permission_snapshot_id,permission_snapshot,config_version_id,created_at) VALUES(?,?,?,?,?,?)',(sid,body.role_id,ps,role[0],cfg[0],now()))
+ return {'id':sid,'role_id':body.role_id,'config_version_id':cfg[0]}
+@app.get('/api/v1/sessions/{sid}')
+def get_session(sid:str):
+ with connect(PLATFORM_DB) as db:
+  s=db.execute('SELECT * FROM sessions WHERE id=?',(sid,)).fetchone(); req=db.execute('SELECT id,question,status,parent_request_id,created_at FROM requests WHERE session_id=? ORDER BY created_at',(sid,)).fetchall()
+ if not s: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'会话不存在'})
+ return {**dict(s),'history':[dict(x) for x in req]}
+@app.post('/api/v1/queries',status_code=202)
+async def create_query(body:QueryIn):
+ rid=str(uuid.uuid4()); trace=str(uuid.uuid4())
+ with connect(PLATFORM_DB) as db:
+  s=db.execute('SELECT * FROM sessions WHERE id=? AND active=1',(body.session_id,)).fetchone()
+  if not s: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'活动会话不存在'})
+  if body.parent_request_id and not db.execute('SELECT 1 FROM requests WHERE id=? AND session_id=?',(body.parent_request_id,body.session_id)).fetchone(): raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'父请求不属于当前会话'})
+  ctx=json.loads(s['context']); db.execute('INSERT INTO requests(id,session_id,parent_request_id,trace_id,scenario_id,question,mode,status,config_version_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',(rid,body.session_id,body.parent_request_id,trace,body.scenario_id,body.question,'POC','PENDING',s['config_version_id'],now()))
+ c=PipelineContext(body.session_id,rid,s['role_id'],s['config_version_id'],body.question,body.parent_request_id,body.scenario_id,parameters=ctx)
+ asyncio.create_task(engine.run(c)); return {'request_id':rid,'trace_id':trace,'status':'PENDING'}
+@app.get('/api/v1/queries/{rid}')
+def query_detail(rid:str):
+ with connect(PLATFORM_DB) as db:
+  q=db.execute('SELECT * FROM requests WHERE id=?',(rid,)).fetchone()
+  if not q: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'请求不存在'})
+  layers=[{**dict(x),'input':json.loads(x['input_json']),'output':json.loads(x['output_json'] or '{}')} for x in db.execute('SELECT * FROM layer_executions WHERE request_id=? ORDER BY id',(rid,))]
+  sql=[{**dict(x),'parameters':json.loads(x['parameters'])} for x in db.execute('SELECT * FROM sql_executions WHERE request_id=? ORDER BY sequence',(rid,))]
+  snap=db.execute('SELECT * FROM result_snapshots WHERE request_id=?',(rid,)).fetchone()
+ return {'request':dict(q),'layers':layers,'sql_executions':sql,'result':json.loads(snap['payload']) if snap else []}
+@app.get('/api/v1/queries/{rid}/events')
+async def events(rid:str,request:Request):
+ try: last=int(request.headers.get('last-event-id') or request.query_params.get('last_event_id','0'))
+ except ValueError: last=0
+ async def stream():
+  nonlocal last
+  while True:
+   with connect(PLATFORM_DB) as db:
+    rows=db.execute('SELECT * FROM sse_events WHERE request_id=? AND event_id>? ORDER BY event_id',(rid,last)).fetchall(); q=db.execute('SELECT status FROM requests WHERE id=?',(rid,)).fetchone()
+   for row in rows:
+    last=row['event_id']; yield f"id: {last}\nevent: {row['event_type']}\ndata: {row['payload']}\n\n"
+   if q and q['status'] not in ('PENDING','RUNNING'): break
+   yield ': heartbeat\n\n'; await asyncio.sleep(.15)
+ return StreamingResponse(stream(),media_type='text/event-stream',headers={'Cache-Control':'no-cache','X-Accel-Buffering':'no'})
+@app.post('/api/v1/queries/{rid}/cancel')
+def cancel(rid:str):
+ with connect(PLATFORM_DB) as db:
+  q=db.execute('SELECT status,cancel_requested FROM requests WHERE id=?',(rid,)).fetchone()
+  if not q: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'请求不存在'})
+  if q['status'] in ('SUCCEEDED','FAILED','BLOCKED','SHORT_CIRCUITED','WAITING_INPUT','CANCELLED'): return {'request_id':rid,'status':q['status'],'idempotent':True}
+  db.execute('UPDATE requests SET cancel_requested=1,cancelled_by=?,cancelled_at=? WHERE id=?',('demo-user',now(),rid))
+ return {'request_id':rid,'status':'CANCELLATION_REQUESTED'}
+@app.get('/api/v1/admin/baseline')
+def baseline(): return json.loads(BASELINE.read_text())
+@app.get('/api/v1/admin/logs')
+def logs(kind:str='requests',status:str|None=None):
+ allowed={'requests':'requests','sessions':'sessions','sql':'sql_executions','audit':'audit_logs'}; table=allowed.get(kind)
+ if not table: raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'日志类型无效'})
+ with connect(PLATFORM_DB) as db:
+  rows=db.execute(f'SELECT * FROM {table}'+(' WHERE status=?' if status and table=='requests' else '')+' ORDER BY rowid DESC LIMIT 200',((status,) if status and table=='requests' else ())).fetchall()
+ return {'items':[dict(x) for x in rows]}
+@app.get('/api/v1/admin/readiness')
+async def readiness():
+ b=json.loads(BASELINE.read_text()); return {'ready':len(b['roles'])==3 and len(b['scenarios'])==8 and PLATFORM_DB.exists(),'roles':len(b['roles']),'scenarios':len(b['scenarios']),'providers':{'mock':await engine.registry.model.health_check(),'sqlite':await engine.registry.datasource.health_check()}}
+@app.post('/api/v1/admin/providers/{kind}/test')
+def provider_test(kind:str): return engine.registry.status(kind.upper())
+@app.post('/api/v1/admin/config/drafts',status_code=201)
+def draft(body:DraftIn):
+ with connect(PLATFORM_DB) as db:
+  version=db.execute('SELECT COALESCE(MAX(version),0)+1 FROM config_versions').fetchone()[0]; cid=str(uuid.uuid4()); db.execute('INSERT INTO config_versions VALUES(?,?,?,?,?,?,?)',(cid,body.name,'DRAFT',version,json.dumps(body.payload,ensure_ascii=False),0,now())); db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('CREATE_DRAFT','admin',json.dumps({'id':cid}),now()))
+ return {'id':cid,'version':version,'status':'DRAFT'}
+@app.post('/api/v1/admin/config/{cid}/publish')
+def publish(cid:str):
+ with connect(PLATFORM_DB) as db:
+  x=db.execute("SELECT status FROM config_versions WHERE id=? AND official=0",(cid,)).fetchone()
+  if not x or x['status']!='DRAFT': raise HTTPException(409,detail={'code':'INVALID_INPUT','message':'仅非官方草稿可发布'})
+  db.execute("UPDATE config_versions SET status='ARCHIVED' WHERE status='PUBLISHED'"); db.execute("UPDATE config_versions SET status='PUBLISHED' WHERE id=?",(cid,)); db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('PUBLISH','admin',json.dumps({'id':cid}),now()))
+ return {'id':cid,'status':'PUBLISHED','affects':'new_sessions_only'}
+@app.get('/api/v1/admin/config/export')
+def export_config():
+ with connect(PLATFORM_DB) as db: x=db.execute("SELECT * FROM config_versions WHERE status='PUBLISHED'").fetchone()
+ return dict(x)
+@app.post('/api/v1/admin/reset/{scope}')
+def reset(scope:str,confirm:bool=False):
+ if scope=='official': restore_official_config()
+ elif scope=='mock-data': restore_baseline(True)
+ elif scope=='all' and confirm: full_reset()
+ else: raise HTTPException(400,detail={'code':'INVALID_INPUT','message':'重置范围或确认参数无效'})
+ with connect(PLATFORM_DB) as db: db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',(f'RESET_{scope}','admin','{}',now()))
+ return {'status':'ok','scope':scope}
+@app.post('/api/v1/admin/backup')
+def create_backup(): return {'path':str(backup(ROOT/'backups'/'phase1.zip').relative_to(ROOT))}
+dist=ROOT/'frontend'/'dist'
+if dist.exists(): app.mount('/',StaticFiles(directory=dist,html=True),name='frontend')

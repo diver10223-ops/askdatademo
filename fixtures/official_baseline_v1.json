@@ -1,0 +1,628 @@
+{
+  "$schema": "../schemas/baseline.schema.json",
+  "id": "official-demo-baseline-v1",
+  "version": 1,
+  "immutable": true,
+  "temporary_demo_values": true,
+  "sources": [
+    "index.html",
+    "智能问数后台管理.html",
+    "NLQ多角色权限适配·8大标准演示场景完整清单（含差异化演示+七层链路详设）.docx"
+  ],
+  "roles": [
+    {
+      "id": "admin",
+      "name": "张总｜总行领导",
+      "orgs": [
+        "全行",
+        "北京分行",
+        "上海分行"
+      ],
+      "metrics": [
+        "贷款投放",
+        "零售贷款",
+        "对公贷款"
+      ],
+      "features": [
+        "query",
+        "dashboard",
+        "attribution"
+      ]
+    },
+    {
+      "id": "beijing",
+      "name": "李总｜北京分行",
+      "orgs": [
+        "北京分行"
+      ],
+      "metrics": [
+        "贷款投放",
+        "零售贷款",
+        "对公贷款"
+      ],
+      "features": [
+        "query",
+        "dashboard",
+        "attribution"
+      ]
+    },
+    {
+      "id": "retail",
+      "name": "王总｜零售主管",
+      "orgs": [
+        "全行",
+        "北京分行",
+        "上海分行"
+      ],
+      "metrics": [
+        "零售贷款"
+      ],
+      "features": [
+        "query",
+        "dashboard",
+        "attribution"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "scenario-1",
+      "number": 1,
+      "name": "基础查数",
+      "cases": [
+        {
+          "id": "s1-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月上海分行对公贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "基础查数"
+            }
+          ]
+        },
+        {
+          "id": "s1-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行对公贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "基础查数"
+            }
+          ]
+        },
+        {
+          "id": "s1-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月全行零售贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "基础查数"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-2",
+      "number": 2,
+      "name": "BI驾驶舱",
+      "cases": [
+        {
+          "id": "s2-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查看全行经营指标分析大盘",
+              "expected_last_layer": "L3",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "BI驾驶舱"
+            }
+          ]
+        },
+        {
+          "id": "s2-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查看北京分行经营指标分析大盘",
+              "expected_last_layer": "L3",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "BI驾驶舱"
+            }
+          ]
+        },
+        {
+          "id": "s2-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查看零售信贷专项经营驾驶舱",
+              "expected_last_layer": "L3",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "BI驾驶舱"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-3",
+      "number": 3,
+      "name": "模糊推荐",
+      "cases": [
+        {
+          "id": "s3-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查一下2026年3月银行贷款相关数据",
+              "expected_last_layer": "L2",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "模糊推荐"
+            }
+          ]
+        },
+        {
+          "id": "s3-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查一下2026年3月北京分行贷款数据",
+              "expected_last_layer": "L2",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "模糊推荐"
+            }
+          ]
+        },
+        {
+          "id": "s3-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查一下2026年3月零售贷款相关数据",
+              "expected_last_layer": "L2",
+              "expected_status": "SHORT_CIRCUITED",
+              "execution": "NONE",
+              "final_display": "模糊推荐"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-4",
+      "number": 4,
+      "name": "同比归因",
+      "cases": [
+        {
+          "id": "s4-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行贷款投放同比去年变化",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比归因"
+            }
+          ]
+        },
+        {
+          "id": "s4-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行贷款投放同比去年变化",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比归因"
+            }
+          ]
+        },
+        {
+          "id": "s4-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月全行零售贷款同比去年变化",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比归因"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-5",
+      "number": 5,
+      "name": "权限合规拦截",
+      "cases": [
+        {
+          "id": "s5-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询客户身份证号和贷款明细",
+              "expected_last_layer": "L2",
+              "expected_status": "BLOCKED",
+              "execution": "NONE",
+              "final_display": "权限合规拦截"
+            }
+          ]
+        },
+        {
+          "id": "s5-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询上海分行2026年3月对公贷款数据",
+              "expected_last_layer": "L2",
+              "expected_status": "BLOCKED",
+              "execution": "NONE",
+              "final_display": "权限合规拦截"
+            }
+          ]
+        },
+        {
+          "id": "s5-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询2026年3月对公贷款投放",
+              "expected_last_layer": "L2",
+              "expected_status": "BLOCKED",
+              "execution": "NONE",
+              "final_display": "权限合规拦截"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-6",
+      "number": 6,
+      "name": "多轮上下文",
+      "cases": [
+        {
+          "id": "s6-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行零售贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "多轮上下文"
+            },
+            {
+              "turn": 2,
+              "question": "去年同期呢",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比结果"
+            }
+          ]
+        },
+        {
+          "id": "s6-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行零售贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "多轮上下文"
+            },
+            {
+              "turn": 2,
+              "question": "去年同期呢",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比结果"
+            }
+          ]
+        },
+        {
+          "id": "s6-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月全行零售贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "多轮上下文"
+            },
+            {
+              "turn": 2,
+              "question": "去年同期呢",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "同比结果"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-7",
+      "number": 7,
+      "name": "参数补全",
+      "cases": [
+        {
+          "id": "s7-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询贷款投放同比数据",
+              "expected_last_layer": "L2",
+              "expected_status": "WAITING_INPUT",
+              "execution": "NONE",
+              "final_display": "参数补全"
+            },
+            {
+              "turn": 2,
+              "question": "2026年3月，全行",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "补全后结果",
+              "parent_turn": 1
+            }
+          ]
+        },
+        {
+          "id": "s7-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询贷款投放同比数据",
+              "expected_last_layer": "L2",
+              "expected_status": "WAITING_INPUT",
+              "execution": "NONE",
+              "final_display": "参数补全"
+            },
+            {
+              "turn": 2,
+              "question": "2026年3月，北京分行",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "补全后结果",
+              "parent_turn": 1
+            }
+          ]
+        },
+        {
+          "id": "s7-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "查询零售贷款同比数据",
+              "expected_last_layer": "L2",
+              "expected_status": "WAITING_INPUT",
+              "execution": "NONE",
+              "final_display": "参数补全"
+            },
+            {
+              "turn": 2,
+              "question": "2026年3月，全行",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "补全后结果",
+              "parent_turn": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scenario-8",
+      "number": 8,
+      "name": "取数后二次归因",
+      "cases": [
+        {
+          "id": "s8-admin",
+          "role_id": "admin",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月全行对公贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "取数后二次归因"
+            },
+            {
+              "turn": 2,
+              "question": "为什么下降",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE+MOCK_FIXTURE",
+              "final_display": "二次归因",
+              "parent_turn": 1
+            }
+          ]
+        },
+        {
+          "id": "s8-beijing",
+          "role_id": "beijing",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月北京分行对公贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "取数后二次归因"
+            },
+            {
+              "turn": 2,
+              "question": "为什么下降",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE+MOCK_FIXTURE",
+              "final_display": "二次归因",
+              "parent_turn": 1
+            }
+          ]
+        },
+        {
+          "id": "s8-retail",
+          "role_id": "retail",
+          "default": true,
+          "turns": [
+            {
+              "turn": 1,
+              "question": "2026年3月全行零售贷款投放金额",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE",
+              "final_display": "取数后二次归因"
+            },
+            {
+              "turn": 2,
+              "question": "为什么下降",
+              "expected_last_layer": "L7",
+              "expected_status": "SUCCEEDED",
+              "execution": "SQLITE+MOCK_FIXTURE",
+              "final_display": "二次归因",
+              "parent_turn": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assets": {
+    "metrics": [
+      "贷款投放",
+      "零售贷款",
+      "对公贷款"
+    ],
+    "dimensions": [
+      "机构",
+      "统计日期"
+    ],
+    "synonyms": {
+      "去年同期": "同比",
+      "企业贷款": "对公贷款"
+    },
+    "recommendations": {
+      "admin": [
+        "全行零售贷款投放",
+        "对公贷款规模",
+        "各分行贷款占比"
+      ],
+      "beijing": [
+        "北京分行零售贷款投放",
+        "北京分行对公贷款规模"
+      ],
+      "retail": [
+        "全行零售信贷投放",
+        "各分行零售贷款占比"
+      ]
+    },
+    "table": "dws_loan_aggr_wide",
+    "sql_template": "SELECT org_name, stat_dt, {metric} FROM dws_loan_aggr_wide WHERE org_name = :org AND stat_dt = :date",
+    "dashboard": "builtin://dashboard"
+  },
+  "warehouse_rows": [
+    {
+      "stat_dt": "2026-03-31",
+      "org_name": "全行",
+      "loan_cur": 980.5,
+      "loan_last": 1015.2,
+      "retail_cur": 260.45,
+      "retail_last": 250.1,
+      "corporate_cur": 720.05,
+      "corporate_last": 765.1
+    },
+    {
+      "stat_dt": "2026-03-31",
+      "org_name": "北京分行",
+      "loan_cur": 360.73,
+      "loan_last": 385.2,
+      "retail_cur": 80.15,
+      "retail_last": 76.8,
+      "corporate_cur": 280.58,
+      "corporate_last": 308.4
+    },
+    {
+      "stat_dt": "2026-03-31",
+      "org_name": "上海分行",
+      "loan_cur": 405.62,
+      "loan_last": 398.0,
+      "retail_cur": 95.3,
+      "retail_last": 91.2,
+      "corporate_cur": 310.32,
+      "corporate_last": 306.8
+    }
+  ]
+}
