@@ -23,6 +23,7 @@ def main() -> None:
     for scenario in baseline["scenarios"]:
         for case in scenario["cases"]:
             session_id, role = str(uuid.uuid4()), case["role_id"]
+            permission_data = next(item for item in baseline["roles"] if item["id"] == role)
             with connect(PLATFORM_DB) as db:
                 permission = db.execute(
                     "SELECT permissions FROM roles WHERE id=?", (role,)
@@ -49,6 +50,7 @@ def main() -> None:
                 asyncio.run(engine.run(PipelineContext(
                     session_id, request_id, role, "official-v1", turn["question"], parent,
                     scenario["id"], case["id"], parameters=context,
+                    permissions=permission_data, config=baseline,
                 )))
                 with connect(PLATFORM_DB) as db:
                     request = db.execute(

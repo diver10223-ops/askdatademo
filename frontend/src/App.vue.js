@@ -12,7 +12,13 @@ const isAdmin = computed(() => route.path.startsWith('/admin'));
 const technical = ref(false);
 const ready = ref();
 const adminKind = ref('assets'), adminId = ref('demo-item'), adminJson = ref('{\n  "name": "演示配置项"\n}'), adminMessage = ref('');
-async function newSession() { session.value = await adapter.createSession(role.value); events.value = []; detail.value = undefined; parent.value = undefined; }
+const executionMode = ref('PHASE1_DEMO'), providerProfiles = ref([]), providerProfileId = ref('');
+const phase2Json = ref(JSON.stringify({ name: 'Phase 2 Profile', datasource_type: 'CLICKHOUSE', model_base_url: 'https://model.example/v1', model: 'model-name', model_api_key: '', datasource_url: 'https://clickhouse.example:8443', datasource_host: null, datasource_port: 3306, datasource_username: 'default', datasource_password: '', database: 'default', allowed_tables: ['dws_loan_aggr_wide'], max_rows: 1000, timeout: 30, retries: 2 }, null, 2));
+async function loadProfiles() { if (!offline) {
+    providerProfiles.value = (await adapter.admin('/phase2/providers')).items;
+    providerProfileId.value ||= providerProfiles.value.find(x => x.status === 'ENABLED')?.id || '';
+} }
+async function newSession() { session.value = await adapter.createSession(role.value, offline ? {} : { execution_mode: executionMode.value, provider_profile_id: executionMode.value.startsWith('PHASE2') ? providerProfileId.value : undefined }); events.value = []; detail.value = undefined; parent.value = undefined; }
 async function roleChanged() { await newSession(); }
 async function run(text) { if (!session.value)
     return; question.value = text || question.value; if (!question.value.trim())
@@ -31,7 +37,7 @@ finally {
 async function stop() { if (parent.value)
     await adapter.cancel(parent.value); }
 async function follow(text) { question.value = text; await run(); }
-onMounted(async () => { await newSession(); ready.value = await adapter.readiness(); });
+onMounted(async () => { await loadProfiles(); await newSession(); ready.value = await adapter.readiness(); });
 async function saveAdmin() { try {
     const payload = JSON.parse(adminJson.value);
     await adapter.admin(`/resources/${adminKind.value}/${adminId.value}`, { method: 'PUT', body: JSON.stringify({ id: adminId.value, payload, enabled: true }) });
@@ -43,6 +49,16 @@ catch (e) {
 async function copyDraft() { const payload = await adapter.admin('/baseline'); await adapter.admin('/config/drafts', { method: 'POST', body: JSON.stringify({ name: 'Baseline 副本', payload }) }); adminMessage.value = '已复制为草稿'; }
 async function restoreOfficial() { await adapter.admin('/reset/official', { method: 'POST' }); adminMessage.value = '已恢复官方配置（历史会话保留）'; }
 async function exportConfig() { const data = await adapter.admin('/config/export'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); a.download = 'askdata-config.json'; a.click(); URL.revokeObjectURL(a.href); adminMessage.value = '配置已导出'; }
+async function createProvider() { try {
+    const created = await adapter.admin('/phase2/providers', { method: 'POST', body: JSON.stringify(JSON.parse(phase2Json.value)) });
+    await adapter.admin(`/phase2/providers/${created.id}/enable`, { method: 'POST' });
+    const result = await adapter.admin(`/phase2/providers/${created.id}/diagnose`, { method: 'POST' });
+    adminMessage.value = `Provider 已加密保存并启用，诊断：${result.status}`;
+    await loadProfiles();
+}
+catch (e) {
+    adminMessage.value = `Provider 配置失败：${e}`;
+} }
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_elements;
@@ -85,6 +101,45 @@ __VLS_asFunctionalElement(__VLS_elements.button, __VLS_elements.button)({
 });
 // @ts-ignore
 [isAdmin,];
+if (!__VLS_ctx.offline) {
+    // @ts-ignore
+    [offline,];
+    __VLS_asFunctionalElement(__VLS_elements.select, __VLS_elements.select)({
+        ...{ onChange: (__VLS_ctx.newSession) },
+        value: (__VLS_ctx.executionMode),
+        'aria-label': "执行模式",
+    });
+    // @ts-ignore
+    [newSession, executionMode,];
+    __VLS_asFunctionalElement(__VLS_elements.option, __VLS_elements.option)({
+        value: "PHASE1_DEMO",
+    });
+    __VLS_asFunctionalElement(__VLS_elements.option, __VLS_elements.option)({
+        value: "PHASE2_DEMO",
+    });
+    __VLS_asFunctionalElement(__VLS_elements.option, __VLS_elements.option)({
+        value: "PHASE2_POC",
+    });
+}
+if (!__VLS_ctx.offline && __VLS_ctx.executionMode.startsWith('PHASE2')) {
+    // @ts-ignore
+    [offline, executionMode,];
+    __VLS_asFunctionalElement(__VLS_elements.select, __VLS_elements.select)({
+        ...{ onChange: (__VLS_ctx.newSession) },
+        value: (__VLS_ctx.providerProfileId),
+        'aria-label': "Provider Profile",
+    });
+    // @ts-ignore
+    [newSession, providerProfileId,];
+    for (const [p] of __VLS_getVForSourceType((__VLS_ctx.providerProfiles.filter(x => x.status === 'ENABLED')))) {
+        // @ts-ignore
+        [providerProfiles,];
+        __VLS_asFunctionalElement(__VLS_elements.option, __VLS_elements.option)({
+            value: (p.id),
+        });
+        (p.name);
+    }
+}
 __VLS_asFunctionalElement(__VLS_elements.select, __VLS_elements.select)({
     ...{ onChange: (__VLS_ctx.roleChanged) },
     value: (__VLS_ctx.role),
@@ -377,6 +432,32 @@ else {
     });
     __VLS_asFunctionalElement(__VLS_elements.span, __VLS_elements.span)({});
     __VLS_asFunctionalElement(__VLS_elements.em, __VLS_elements.em)({});
+    (__VLS_ctx.offline ? 'POC 中配置' : '二期已支持');
+    // @ts-ignore
+    [offline,];
+    if (!__VLS_ctx.offline) {
+        // @ts-ignore
+        [offline,];
+        __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
+            ...{ class: "panel" },
+        });
+        __VLS_asFunctionalElement(__VLS_elements.h3, __VLS_elements.h3)({});
+        __VLS_asFunctionalElement(__VLS_elements.p, __VLS_elements.p)({});
+        __VLS_asFunctionalElement(__VLS_elements.textarea, __VLS_elements.textarea)({
+            value: (__VLS_ctx.phase2Json),
+            'aria-label': "Phase 2 Provider JSON",
+        });
+        // @ts-ignore
+        [phase2Json,];
+        __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
+            ...{ class: "actions" },
+        });
+        __VLS_asFunctionalElement(__VLS_elements.button, __VLS_elements.button)({
+            ...{ onClick: (__VLS_ctx.createProvider) },
+        });
+        // @ts-ignore
+        [createProvider,];
+    }
     __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
         ...{ class: "panel" },
     });
@@ -486,6 +567,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['actions']} */ ;
 /** @type {__VLS_StyleScopedClasses['panel']} */ ;
 /** @type {__VLS_StyleScopedClasses['actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['actions']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -510,6 +593,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             adminId: adminId,
             adminJson: adminJson,
             adminMessage: adminMessage,
+            executionMode: executionMode,
+            providerProfiles: providerProfiles,
+            providerProfileId: providerProfileId,
+            phase2Json: phase2Json,
+            newSession: newSession,
             roleChanged: roleChanged,
             run: run,
             stop: stop,
@@ -518,6 +606,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             copyDraft: copyDraft,
             restoreOfficial: restoreOfficial,
             exportConfig: exportConfig,
+            createProvider: createProvider,
         };
     },
 });

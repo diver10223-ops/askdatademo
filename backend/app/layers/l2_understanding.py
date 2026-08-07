@@ -1,8 +1,12 @@
 from ..models import LayerResult
 class UnderstandingLayer:
  layer_code='L2'; layer_name='对话理解层'
+ def __init__(self,registry=None): self.registry=registry
  async def execute(self,c):
   q=c.question; role=c.role_id; permissions=c.permissions or {}; compliance=c.config.get('compliance',{})
+  model_output={}
+  if self.registry and getattr(self.registry,'phase',1)==2:
+   model_output=await self.registry.model.structured_generate('L2',{'question':q,'role':role,'scenario_id':c.scenario_id,'context':c.parameters})
   sensitive=compliance.get('sensitive_words',['身份证','明细','涉密'])
   if any(x in q for x in sensitive): return LayerResult('BLOCKED',{'message':compliance.get('intercept_message','涉密或明细数据已按合规规则拦截')},True,'COMPLIANCE_BLOCKED')
   known_orgs={org for item in c.config.get('roles',[]) for org in item.get('orgs',[])} or {'全行','北京分行','上海分行'}; requested_org=next((x for x in known_orgs if x in q),None)
@@ -25,4 +29,4 @@ class UnderstandingLayer:
    return LayerResult('WAITING_INPUT',{'message':'请补充机构、时间和指标','options':['2026年3月','全行','北京分行','贷款投放']},True,'MISSING_PARAMETER')
   inherited.setdefault('org','全行' if role!='beijing' else '北京分行'); inherited.setdefault('date','2026-03-31'); inherited.setdefault('metric','retail_cur' if role=='retail' else 'loan_cur')
   c.parameters=inherited
-  return LayerResult(output={'parameters':inherited,'provider':'MOCK','deterministic':True})
+  return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','model_output':model_output,'deterministic':not bool(model_output)})

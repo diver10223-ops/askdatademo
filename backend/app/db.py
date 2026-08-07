@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS result_snapshots(request_id TEXT PRIMARY KEY REFERENC
 CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,actor TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS provider_configs(id TEXT PRIMARY KEY,type TEXT NOT NULL,status TEXT NOT NULL,config TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS admin_resources(kind TEXT NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(kind,id));
+CREATE TABLE IF NOT EXISTS phase2_provider_profiles(id TEXT PRIMARY KEY,name TEXT NOT NULL,model_type TEXT NOT NULL CHECK(model_type='OPENAI_COMPATIBLE'),datasource_type TEXT NOT NULL CHECK(datasource_type IN ('CLICKHOUSE','MYSQL')),public_config TEXT NOT NULL,encrypted_credentials TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('DRAFT','ENABLED','DISABLED')),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS phase2_session_profiles(session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,profile_id TEXT NOT NULL REFERENCES phase2_provider_profiles(id),execution_mode TEXT NOT NULL CHECK(execution_mode IN ('PHASE2_DEMO','PHASE2_POC')));
+CREATE TABLE IF NOT EXISTS provider_diagnostics(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL,component TEXT NOT NULL,status TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
 ''')
  with connect(WAREHOUSE_DB) as c:
   c.executescript('''CREATE TABLE IF NOT EXISTS dws_loan_aggr_wide(stat_dt TEXT NOT NULL,org_name TEXT NOT NULL,loan_cur REAL,loan_last REAL,retail_cur REAL,retail_last REAL,corporate_cur REAL,corporate_last REAL,PRIMARY KEY(stat_dt,org_name)); CREATE INDEX IF NOT EXISTS idx_loan_org_date ON dws_loan_aggr_wide(org_name,stat_dt);''')

@@ -18,6 +18,10 @@ export const adminApi={
  async saveDraft(name:string,payload:JsonObject){if(isOffline){const result={id:`offline-${Date.now()}`,version:Date.now(),status:'DRAFT',name,payload:clone(payload)};localStorage.setItem(draftKey,JSON.stringify(result));record('CREATE_DRAFT',{id:result.id,name});return result}return request('/config/drafts',{method:'POST',body:JSON.stringify({name,payload})})},
  async publish(id:string){if(isOffline){const value=JSON.parse(localStorage.getItem(draftKey)||'null');if(!value||value.id!==id)throw new Error('草稿不存在或已失效');localStorage.setItem(publishedKey,JSON.stringify({...value,status:'PUBLISHED'}));localStorage.removeItem(draftKey);record('PUBLISH',{id,affects:'new_sessions_only'});return {id,status:'PUBLISHED',affects:'new_sessions_only'}}return request(`/config/${id}/publish`,{method:'POST'})},
  async testProvider(kind:string){if(isOffline)return {type:kind.toUpperCase(),status:['mock','sqlite'].includes(kind)?'READY':'UNSUPPORTED_PHASE_1'};return request(`/providers/${kind}/test`,{method:'POST'})},
+ async phase2Profiles(){return isOffline?{items:[]}:request('/phase2/providers')},
+ async createPhase2Profile(payload:JsonObject){if(isOffline)throw new Error('Offline Demo 不连接真实 Provider');return request('/phase2/providers',{method:'POST',body:JSON.stringify(payload)})},
+ async enablePhase2Profile(id:string){return request(`/phase2/providers/${id}/enable`,{method:'POST'})},
+ async diagnosePhase2Profile(id:string){return request(`/phase2/providers/${id}/diagnose`,{method:'POST'})},
  async backup(){if(isOffline){record('BACKUP');return {path:'浏览器本地配置已导出'}}return request('/backup',{method:'POST'})},
  async reset(scope:string){if(isOffline){if(scope==='official'){localStorage.removeItem(publishedKey);localStorage.removeItem(draftKey);}record(`RESET_${scope}`);return {status:'ok',scope}}return request(`/reset/${scope}${scope==='all'?'?confirm=true':''}`,{method:'POST'})}
 };

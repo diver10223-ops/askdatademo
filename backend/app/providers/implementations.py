@@ -16,7 +16,7 @@ class SQLiteDataSourceProvider:
 class FixtureProvider:
  async def execute(self,key,parameters): return [{'factor':'阶段性放款节奏','contribution':'主要影响'}]
 class ProviderRegistry:
- def __init__(self): self.model=MockModelProvider(); self.datasource=SQLiteDataSourceProvider(); self.fixture=FixtureProvider()
+ def __init__(self): self.model=MockModelProvider(); self.datasource=SQLiteDataSourceProvider(); self.fixture=FixtureProvider(); self.phase=1; self.profile_id='phase1-default'
  def status(self,kind):
   if kind in ('OPENAI_COMPATIBLE','CLICKHOUSE','MYSQL'): return {'status':'UNSUPPORTED_PHASE_1','network_attempted':False}
   return {'status':'READY'}

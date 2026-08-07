@@ -1,1 +1,1 @@
-{"root":["./src/main.ts","./src/types.ts","./src/adapters/offline.ts","./src/adapters/poc.ts","./src/App.vue"],"version":"5.8.3"}
+{"root":["./src/admin-api.ts","./src/main.ts","./src/runtime.ts","./src/types.ts","./src/adapters/offline.ts","./src/adapters/poc.ts","./src/AdminView.vue","./src/App.vue"],"version":"5.8.3"}

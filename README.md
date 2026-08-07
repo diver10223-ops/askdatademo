@@ -1,4 +1,4 @@
-# 智能银行问数平台 · Phase 1
+# 智能银行问数平台 · Phase 1 + Phase 2
 
 一期同时提供 Vue 3 + FastAPI Mock POC 和单文件 Offline Demo。模型、外部数仓与登录均不在一期范围。
 
@@ -36,3 +36,14 @@ bash scripts/demo-readiness-check.sh
 ```
 
 若启动失败，先运行诊断脚本；数据库异常可恢复官方数据；端口占用可通过 `ASKDATA_PORT=8001` 改端口。验收详情见 `docs/PHASE1_ACCEPTANCE_REPORT.md`。
+
+## Phase 2 真实 Provider
+
+Phase 2 必须显式配置，不改变默认一期演示。先生成并注入 `ASKDATA_CREDENTIAL_KEY`，再从后台保存 OpenAI-compatible + ClickHouse/MySQL Profile、启用并执行诊断。用户端选择 `二期演示` 或 `二期 POC` 和已启用 Profile 后，新 Session 才使用真实 Provider。密钥只在服务端加密保存，不进入 Offline 文件、配置导出或日志。
+
+```bash
+export ASKDATA_CREDENTIAL_KEY=$(.venv/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+bash scripts/phase2-readiness-check.sh
+```
+
+二期 POC 不静默降级：主 SQL 失败即失败，归因后续 SQL 失败返回部分成功。二期演示模式保留可审计的 Fixture 兜底。详见 `docs/PHASE2_TASKS.md` 和 `docs/PHASE2_ACCEPTANCE_REPORT.md`。
