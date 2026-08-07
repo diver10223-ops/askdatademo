@@ -4,8 +4,19 @@ from .db import connect
 from .config import PLATFORM_DB
 from .models import PipelineContext
 from .providers import ProviderRegistry
+from .runtime import resolve_runtime,runtime_for
 from .layers import InteractionLayer,UnderstandingLayer,SemanticLayer,AssetLayer,QueryLayer,ExecutionLayer,InterpretationLayer
 now=lambda:datetime.now(timezone.utc).isoformat()
+def mask_results(rows,sensitive_keys=None):
+ keys=set(sensitive_keys or resolve_runtime({},'PHASE1_DEMO').require('masking.fields'))
+ def one(row):
+  out={}
+  for k,v in row.items():
+   if k.lower() in keys or k in keys:
+    s=str(v); out[k]=(s[:3]+'*'*max(3,len(s)-7)+s[-4:]) if len(s)>7 else '***'
+   else: out[k]=v
+  return out
+ return [one(x) for x in rows]
 class Engine:
  def __init__(self,registry=None):
   self.registry=registry or ProviderRegistry(); self.layers=[InteractionLayer(),UnderstandingLayer(self.registry),SemanticLayer(),AssetLayer(),QueryLayer(),ExecutionLayer(self.registry),InterpretationLayer(self.registry)]
@@ -14,6 +25,7 @@ class Engine:
    n=db.execute('SELECT COALESCE(MAX(event_id),0)+1 FROM sse_events WHERE request_id=?',(c.request_id,)).fetchone()[0]
    db.execute('INSERT INTO sse_events VALUES(?,?,?,?,?)',(c.request_id,n,event_type,json.dumps(payload,ensure_ascii=False),now()))
  async def run(self,c):
+  runtime_for(c)
   with connect(PLATFORM_DB) as db: db.execute("UPDATE requests SET status='RUNNING' WHERE id=? AND status='PENDING'",(c.request_id,))
   self.event(c,'request.created',{'request_id':c.request_id})
   for layer in self.layers:
@@ -33,13 +45,18 @@ class Engine:
     if layer.layer_code=='L6':
      for i,p in enumerate(c.sql_plan,1): db.execute('INSERT INTO sql_executions(request_id,sequence,business_sql,actual_sql,parameters,source,status,row_count,elapsed_ms,error,fallback) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(c.request_id,i,p['business_sql'],p['actual_sql'],json.dumps(p['parameters'],ensure_ascii=False),p['source'],p.get('execution_status','SUCCEEDED'),len(c.results),elapsed,p.get('error_type'),1 if p.get('fallback_reason') else 0))
    self.event(c,'layer.completed',{'layer_code':layer.layer_code,'status':result.status,'output':result.output})
+   if layer.layer_code=='L7' and result.output.get('answer'):
+    answer=str(result.output['answer'])
+    for offset in range(0,len(answer),4):
+     self.event(c,'answer.delta',{'delta':answer[offset:offset+4],'done':offset+4>=len(answer)})
+     await asyncio.sleep(.025)
    if result.stop: c.status=result.status; c.termination_reason=result.error_code or result.status; break
    c.status='SUCCEEDED'
-   delay=max(0,min(3000,int(c.config.get('system',{}).get('simulation_speed',10))))/1000
+   delay=max(0,min(3000,int(c.runtime.section('execution').get('simulation_speed_ms',0))))/1000
    await asyncio.sleep(delay)
   with connect(PLATFORM_DB) as db:
    db.execute('UPDATE requests SET status=?,last_layer=?,termination_reason=?,completed_at=? WHERE id=?',(c.status,layer.layer_code,c.termination_reason,now(),c.request_id))
    if c.results:
-    raw=json.dumps(c.results,ensure_ascii=False); db.execute('INSERT OR REPLACE INTO result_snapshots VALUES(?,?,?,?)',(c.request_id,raw,1,len(raw.encode())))
+    execution=c.runtime.section('execution'); fields=c.runtime.require('masking.fields'); masked=mask_results(c.results,fields); raw=json.dumps(masked,ensure_ascii=False); max_bytes=int(c.runtime.require('execution.max_snapshot_bytes')); max_rows=int(c.runtime.require('execution.max_snapshot_rows')); raw=raw if len(raw.encode())<=max_bytes else json.dumps(masked[:max_rows],ensure_ascii=False); db.execute('INSERT OR REPLACE INTO result_snapshots VALUES(?,?,?,?)',(c.request_id,raw,1,len(raw.encode())))
    if c.status=='SUCCEEDED': db.execute('UPDATE sessions SET context=? WHERE id=?',(json.dumps(c.parameters,ensure_ascii=False),c.session_id))
   self.event(c,'request.completed',{'status':c.status,'last_layer':layer.layer_code,'answer':c.answer})

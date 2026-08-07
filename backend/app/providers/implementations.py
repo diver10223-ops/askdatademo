@@ -5,7 +5,7 @@ class MockModelProvider:
  capabilities={'structured_output':True,'tasks':['L2','L7']}
  async def health_check(self): return {'status':'READY','provider':'MOCK','network':False}
  async def structured_generate(self,task,payload):
-  return {'task':task,'deterministic':True,'text':payload.get('answer') or payload.get('question','').strip()}
+  content={k:v for k,v in payload.items() if k!='_system_prompt'}; return {'task':task,'deterministic':True,'text':content.get('answer') or content.get('question','').strip()}
 class SQLiteDataSourceProvider:
  async def health_check(self): return {'status':'READY' if WAREHOUSE_DB.exists() else 'FAILED','provider':'SQLITE','read_only':True}
  async def execute(self,sql,parameters):

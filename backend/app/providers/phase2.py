@@ -48,6 +48,8 @@ class OpenAICompatibleProvider:
     api_key: str
     model: str
     policy: RetryPolicy = field(default_factory=RetryPolicy)
+    generation_settings: dict = field(default_factory=dict)
+    system_prompt_prefix: str = ""
     capabilities: dict = field(default_factory=lambda:{"structured_output":True,"tasks":["L2","L7"]})
     def __post_init__(self): self.runner=AsyncGate(self.policy)
     async def health_check(self):
@@ -57,7 +59,8 @@ class OpenAICompatibleProvider:
             with urllib.request.urlopen(request,timeout=self.policy.timeout) as response: return response.status
         status=await self.runner.run(call); return {"status":"READY" if status<400 else "FAILED","provider":"OPENAI_COMPATIBLE","network":True}
     async def structured_generate(self, task: str, payload: dict):
-        body=json.dumps({"model":self.model,"messages":[{"role":"system","content":f"Return JSON for NLQ {task}."},{"role":"user","content":json.dumps(payload,ensure_ascii=False)}],"response_format":{"type":"json_object"}},ensure_ascii=False).encode()
+        content=dict(payload); task_prompt=content.pop('_system_prompt'); system_prompt='\n'.join(x for x in (self.system_prompt_prefix,task_prompt) if x)
+        body=json.dumps({"model":self.model,"messages":[{"role":"system","content":system_prompt},{"role":"user","content":json.dumps(content,ensure_ascii=False)}],**self.generation_settings},ensure_ascii=False).encode()
         def call():
             request=urllib.request.Request(self.base_url.rstrip('/')+'/chat/completions',data=body,method='POST',headers={"Authorization":f"Bearer {self.api_key}","Content-Type":"application/json"})
             with urllib.request.urlopen(request,timeout=self.policy.timeout) as response: return json.loads(response.read())

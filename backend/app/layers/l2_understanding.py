@@ -1,32 +1,38 @@
 from ..models import LayerResult
+from ..runtime import runtime_for
 class UnderstandingLayer:
  layer_code='L2'; layer_name='对话理解层'
  def __init__(self,registry=None): self.registry=registry
  async def execute(self,c):
-  q=c.question; role=c.role_id; permissions=c.permissions or {}; compliance=c.config.get('compliance',{})
+  q=c.question; role=c.role_id; permissions=c.permissions or {}; runtime=runtime_for(c); compliance=runtime.section('compliance'); rules=runtime.section('understanding')
   model_output={}
   if self.registry and getattr(self.registry,'phase',1)==2:
-   model_output=await self.registry.model.structured_generate('L2',{'question':q,'role':role,'scenario_id':c.scenario_id,'context':c.parameters})
-  sensitive=compliance.get('sensitive_words',['身份证','明细','涉密'])
-  if any(x in q for x in sensitive): return LayerResult('BLOCKED',{'message':compliance.get('intercept_message','涉密或明细数据已按合规规则拦截')},True,'COMPLIANCE_BLOCKED')
-  known_orgs={org for item in c.config.get('roles',[]) for org in item.get('orgs',[])} or {'全行','北京分行','上海分行'}; requested_org=next((x for x in known_orgs if x in q),None)
+   model_output=await self.registry.model.structured_generate('L2',{'question':q,'role':role,'scenario_id':c.scenario_id,'context':c.parameters,'_system_prompt':runtime.require('model_prompts.L2')})
+  sensitive=compliance.get('sensitive_words',[])
+  if any(x in q for x in sensitive): return LayerResult('BLOCKED',{'message':runtime.require('compliance.intercept_message')},True,'COMPLIANCE_BLOCKED')
+  known_orgs=set(rules.get('organizations',[])); requested_org=next((x for x in known_orgs if x in q),None)
   if permissions and requested_org and requested_org not in permissions.get('orgs',[]): return LayerResult('BLOCKED',{'message':f'当前角色无权查询{requested_org}'},True,'PERMISSION_DENIED')
-  metric_names={'零售':'零售贷款','对公':'对公贷款','企业贷款':'对公贷款'}; requested_metric=next((v for k,v in metric_names.items() if k in q),None)
+  metric_names=rules.get('metric_keywords',{}); requested_metric=next((v for k,v in metric_names.items() if k in q),None)
   if permissions and requested_metric and requested_metric not in permissions.get('metrics',[]): return LayerResult('BLOCKED',{'message':f'当前角色无权查询{requested_metric}'},True,'PERMISSION_DENIED')
-  if c.scenario_id=='scenario-3' or ('相关数据' in q and '投放金额' not in q):
+  if c.scenario_id==rules.get('ambiguous_scenario') or ('相关数据' in q and '投放金额' not in q):
    rec=c.config.get('assets',{}).get('recommendations',{}).get(role,[])
-   return LayerResult('SHORT_CIRCUITED',{'recommendations':rec[:3],'message':'请选择更明确的合规问句'},True,'AMBIGUOUS_RECOMMENDATION')
+   return LayerResult('SHORT_CIRCUITED',{'recommendations':rec[:3],'message':rules.get('recommendation_message','请选择更明确的合规问句')},True,'AMBIGUOUS_RECOMMENDATION')
   inherited=c.parameters.copy()
-  if '北京分行' in q: inherited['org']='北京分行'
-  elif '上海分行' in q: inherited['org']='上海分行'
-  elif '全行' in q: inherited['org']='全行'
-  if '零售' in q: inherited['metric']='retail_cur'
-  elif '对公' in q: inherited['metric']='corporate_cur'
-  elif '贷款' in q: inherited.setdefault('metric','loan_cur')
-  if '2026' in q or '去年同期' in q or '为什么' in q: inherited.setdefault('date','2026-03-31')
-  if c.scenario_id=='scenario-7' and c.parent_request_id and 'metric' not in inherited: inherited['metric']='retail_cur' if role=='retail' else 'loan_cur'
-  if c.scenario_id=='scenario-7' and not all(k in inherited for k in ('org','date','metric')):
-   return LayerResult('WAITING_INPUT',{'message':'请补充机构、时间和指标','options':['2026年3月','全行','北京分行','贷款投放']},True,'MISSING_PARAMETER')
-  inherited.setdefault('org','全行' if role!='beijing' else '北京分行'); inherited.setdefault('date','2026-03-31'); inherited.setdefault('metric','retail_cur' if role=='retail' else 'loan_cur')
+  if isinstance(model_output,dict) and isinstance(model_output.get('parameters'),dict): inherited.update({k:v for k,v in model_output['parameters'].items() if v})
+  if requested_org: inherited['org']=requested_org
+  if requested_metric: inherited['metric']=rules.get('metric_codes',{}).get(requested_metric)
+  for keyword,value in rules.get('date_values',{}).items():
+   if keyword in q: inherited['date']=value; break
+  semantic=runtime.section('semantic'); dashboard_intent=c.scenario_id==semantic.get('dashboard_scenario') or any(x in q for x in semantic.get('dashboard_keywords',[]))
+  if dashboard_intent:
+   c.parameters=inherited
+   return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','model_output':model_output,'deterministic':not bool(model_output)})
+  completion=rules.get('completion_scenario')
+  if c.scenario_id==completion and c.parent_request_id and 'metric' not in inherited and runtime.policy.allow_parameter_defaults: inherited['metric']=rules.get('default_metric_by_role',{}).get(role)
+  if runtime.policy.allow_parameter_defaults:
+   inherited.setdefault('org',rules.get('default_org_by_role',{}).get(role)); inherited.setdefault('date',rules.get('default_date')); inherited.setdefault('metric',rules.get('default_metric_by_role',{}).get(role))
+  inherited={k:v for k,v in inherited.items() if v is not None}
+  if not all(k in inherited for k in ('org','date','metric')):
+   return LayerResult('WAITING_INPUT',{'message':rules.get('missing_message','请补充机构、时间和指标'),'options':rules.get('missing_options',[])},True,'MISSING_PARAMETER')
   c.parameters=inherited
   return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','model_output':model_output,'deterministic':not bool(model_output)})

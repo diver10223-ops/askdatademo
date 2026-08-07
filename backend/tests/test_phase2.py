@@ -17,6 +17,7 @@ from app.main import app
 from fastapi.testclient import TestClient
 from app.layers.l6_execution import ExecutionLayer
 from app.models import PipelineContext
+from app.runtime import resolve_runtime
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -57,7 +58,7 @@ def test_openai_and_clickhouse_wire_protocols():
     try:
         model=OpenAICompatibleProvider(base,'key','model',retry)
         assert asyncio.run(model.health_check())['status']=='READY'
-        assert asyncio.run(model.structured_generate('L7',{'answer':'x'}))['answer']=='provider answer'
+        assert asyncio.run(model.structured_generate('L7',{'answer':'x','_system_prompt':'Return JSON'}))['answer']=='provider answer'
         data=ClickHouseProvider(base,'user','pass','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'})),retry)
         assert asyncio.run(data.health_check())['status']=='READY'
         assert asyncio.run(data.schema_check())['status']=='READY'
@@ -78,6 +79,24 @@ def test_profile_api_is_encrypted_and_phase1_is_default(monkeypatch):
     phase2=create_session(SessionIn(role_id='admin',execution_mode='PHASE2_POC',provider_profile_id=created['id'])); assert phase2['provider_profile_id']==created['id']
 
 
+def test_model_and_datasource_are_configured_independently(monkeypatch):
+    restore_baseline(); monkeypatch.setenv('ASKDATA_CREDENTIAL_KEY',Fernet.generate_key().decode())
+    with TestClient(app) as client:
+        model=client.post('/api/v1/admin/phase2/models',json={'name':'Gemini','provider':'GEMINI','base_url':'https://generativelanguage.googleapis.com/v1beta/openai','model':'gemini-test','api_key':'gemini-secret'}).json()
+        source=client.post('/api/v1/admin/phase2/datasources',json={'name':'ClickHouse','type':'CLICKHOUSE','url':'https://clickhouse.example','username':'reader','password':'source-secret','database':'default','allowed_tables':['dws_loan_aggr_wide']}).json()
+        assert client.post(f"/api/v1/admin/phase2/models/{model['id']}/enable").status_code==200
+        assert client.post(f"/api/v1/admin/phase2/datasources/{source['id']}/enable").status_code==200
+        composition=client.post('/api/v1/admin/phase2/providers/compose',json={'name':'POC组合','model_config_id':model['id'],'datasource_config_id':source['id']})
+        assert composition.status_code==201
+        with connect(PLATFORM_DB) as db:
+            model_row=db.execute('SELECT public_config,encrypted_credentials FROM phase2_model_configs WHERE id=?',(model['id'],)).fetchone()
+            source_row=db.execute('SELECT public_config,encrypted_credentials FROM phase2_datasource_configs WHERE id=?',(source['id'],)).fetchone()
+            profile=json.loads(db.execute('SELECT public_config FROM phase2_provider_profiles WHERE id=?',(composition.json()['id'],)).fetchone()[0])
+        assert 'gemini-secret' not in model_row['public_config']+model_row['encrypted_credentials']
+        assert 'source-secret' not in source_row['public_config']+source_row['encrypted_credentials']
+        assert profile['model_config_id']==model['id'] and profile['datasource_config_id']==source['id']
+
+
 def test_phase2_http_query_and_sse(monkeypatch):
     restore_baseline(); monkeypatch.setenv('ASKDATA_CREDENTIAL_KEY',Fernet.generate_key().decode()); http=server(); base=f'http://127.0.0.1:{http.server_port}'
     try:
@@ -87,10 +106,16 @@ def test_phase2_http_query_and_sse(monkeypatch):
             session=client.post('/api/v1/sessions',json={'role_id':'admin','execution_mode':'PHASE2_POC','provider_profile_id':profile['id']}).json()
             query=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'2026年3月全行贷款投放金额','scenario_id':'scenario-1'}).json()
             with client.stream('GET',f"/api/v1/queries/{query['request_id']}/events") as response: body=''.join(response.iter_text())
-            assert 'event: request.completed' in body
+            assert 'event: request.completed' in body and 'event: answer.delta' in body
             detail=client.get(f"/api/v1/queries/{query['request_id']}").json()
             assert detail['request']['mode']=='PHASE2_POC' and detail['request']['status']=='SUCCEEDED' and detail['result']
             assert detail['layers'][1]['provider']=='OPENAI_COMPATIBLE' and detail['layers'][5]['provider']=='ClickHouseProvider'
+            assert detail['layers'][-1]['output']['chart']['type']=='bar' and len(detail['layers'][-1]['output']['guides'])==3
+            dashboard=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'打开经营驾驶舱','scenario_id':'scenario-2'}).json()
+            with client.stream('GET',f"/api/v1/queries/{dashboard['request_id']}/events") as response: ''.join(response.iter_text())
+            dashboard_detail=client.get(f"/api/v1/queries/{dashboard['request_id']}").json()
+            assert dashboard_detail['request']['status']=='SHORT_CIRCUITED' and dashboard_detail['request']['last_layer']=='L3'
+            assert dashboard_detail['layers'][-1]['output']['dashboards'][0]['url']=='/dashboards/head-office.html'
     finally: http.shutdown()
 
 
@@ -105,7 +130,7 @@ def test_phase2_failure_policy_is_not_silent():
         async def execute(self,*_): return [{'factor':'fallback'}]
     class Registry: pass
     def context(mode):
-        value=PipelineContext('s','r','admin','v','q',mode=mode); value.sql_plan=[{'actual_sql':'SELECT 1','business_sql':'SELECT 1','parameters':{},'source':'REAL_DATASOURCE'},{'actual_sql':'SELECT 2','business_sql':'SELECT 2','parameters':{},'source':'REAL_DATASOURCE'}]; return value
+        defaults=json.loads((__import__('pathlib').Path(__file__).parents[2]/'fixtures'/'demo_runtime_defaults.json').read_text()); value=PipelineContext('s','r','admin','v','q',mode=mode,config={'runtime':defaults}); value.runtime=resolve_runtime(value.config,mode,['dws_loan_aggr_wide']); value.sql_plan=[{'actual_sql':'SELECT 1','business_sql':'SELECT 1','parameters':{},'source':'REAL_DATASOURCE'},{'actual_sql':'SELECT 2','business_sql':'SELECT 2','parameters':{},'source':'REAL_DATASOURCE'}]; return value
     registry=Registry(); registry.fixture=Fixture(); registry.datasource=Data(1)
     failed=asyncio.run(ExecutionLayer(registry).execute(context('PHASE2_POC'))); assert failed.status=='FAILED' and failed.stop
     registry.datasource=Data(2); partial=asyncio.run(ExecutionLayer(registry).execute(context('PHASE2_POC'))); assert partial.status=='PARTIAL_SUCCESS' and partial.stop

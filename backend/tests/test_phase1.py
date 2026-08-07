@@ -5,6 +5,8 @@ from app.db import restore_baseline,connect
 from app.config import PLATFORM_DB,WAREHOUSE_DB
 from app.engine import Engine
 from app.models import PipelineContext
+from app.main import app
+from fastapi.testclient import TestClient
 
 def setup_module(): restore_baseline()
 def seed_session(role='admin'):
@@ -42,3 +44,12 @@ def test_query_layer_uses_published_sql_template():
  context=PipelineContext('s','x','admin','v2','贷款',parameters={'metric':'loan_cur','org':'全行','date':'2026-03-31'},semantic_plan={'intent':'query'},config=config)
  result=asyncio.run(QueryLayer().execute(context))
  assert result.status=='SUCCEEDED' and context.sql_plan[0]['actual_sql'].endswith('ORDER BY org_name')
+
+
+def test_phase1_session_keeps_phase1_demo_mode():
+ with TestClient(app) as client:
+  session=client.post('/api/v1/sessions',json={'role_id':'admin','execution_mode':'PHASE1_DEMO'}).json()
+  query=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'2026年3月全行贷款投放金额','scenario_id':'scenario-1'}).json()
+  with client.stream('GET',f"/api/v1/queries/{query['request_id']}/events") as response: ''.join(response.iter_text())
+  detail=client.get(f"/api/v1/queries/{query['request_id']}").json()
+  assert detail['request']['mode']=='PHASE1_DEMO'

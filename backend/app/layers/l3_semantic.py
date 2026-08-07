@@ -1,9 +1,11 @@
 from ..models import LayerResult
+from ..runtime import runtime_for
 class SemanticLayer:
  layer_code='L3'; layer_name='语义层'
  async def execute(self,c):
-  if c.scenario_id=='scenario-2' or any(x in c.question for x in ('大盘','驾驶舱')):
-   target={'admin':'全行经营指标驾驶舱','beijing':'北京分行经营驾驶舱','retail':'零售信贷经营驾驶舱'}[c.role_id]
-   return LayerResult('SHORT_CIRCUITED',{'dashboard':target,'url':c.config.get('assets',{}).get('dashboard','builtin://dashboard')},True)
-  c.semantic_plan={'intent':'attribution' if any(x in c.question for x in ('同比','为什么','下降')) else 'query','parameters':c.parameters}
+  runtime=runtime_for(c); semantic=runtime.section('semantic'); assets=runtime.section('assets')
+  if c.scenario_id==semantic.get('dashboard_scenario') or any(x in c.question for x in semantic.get('dashboard_keywords',[])):
+   target=semantic.get('dashboard_names',{}).get(c.role_id); links=semantic.get('dashboard_links',{}).get(c.role_id,[])
+   return LayerResult('SHORT_CIRCUITED',{'dashboard':target,'url':links[0]['url'] if links else assets.get('dashboard_url'),'dashboards':links},True)
+  c.semantic_plan={'intent':'attribution' if any(x in c.question for x in semantic.get('attribution_keywords',[])) else 'query','parameters':c.parameters}
   return LayerResult(output=c.semantic_plan)

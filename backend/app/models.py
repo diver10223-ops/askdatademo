@@ -9,7 +9,7 @@ class PipelineContext:
  parameters:dict[str,Any]=field(default_factory=dict); semantic_plan:dict[str,Any]=field(default_factory=dict)
  sql_plan:list[dict[str,Any]]=field(default_factory=list); results:list[dict[str,Any]]=field(default_factory=list)
  answer:str=""; status:str="RUNNING"; termination_reason:str|None=None
- permissions:dict[str,Any]=field(default_factory=dict); config:dict[str,Any]=field(default_factory=dict)
+ permissions:dict[str,Any]=field(default_factory=dict); config:dict[str,Any]=field(default_factory=dict); runtime:Any=None
 @dataclass
 class LayerResult:
  status:str="SUCCEEDED"; output:dict[str,Any]=field(default_factory=dict); stop:bool=False; error_code:str|None=None
