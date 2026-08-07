@@ -5,5 +5,12 @@ node_modules/
 frontend/dist/
 data/*.db
 data/*.db-*
+data/.credential-key
+data/clickhouse/
+data/clickhouse-server.log
+data/clickhouse-server.pid
+tools/clickhouse/clickhouse
+access/
+preprocessed_configs/
 backups/*.zip
 .pytest_cache/

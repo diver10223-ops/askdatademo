@@ -1,2 +1,2 @@
-import {createApp} from 'vue';import {createRouter,createWebHashHistory,createWebHistory} from 'vue-router';import App from './App.vue';import AdminView from './AdminView.vue';import {isOffline} from './runtime';import './style.css';
-const router=createRouter({history:isOffline?createWebHashHistory():createWebHistory(),routes:[{path:'/',component:App},{path:'/admin/:pathMatch(.*)*',component:AdminView}]});createApp(App).use(router).mount('#app');
+import {createApp,h} from 'vue';import {createRouter,createWebHashHistory,createWebHistory,RouterView} from 'vue-router';import App from './App.vue';import AdminView from './AdminView.vue';import {isOffline} from './runtime';import './style.css';
+const router=createRouter({history:isOffline?createWebHashHistory():createWebHistory(),routes:[{path:'/',component:App},{path:'/admin/:pathMatch(.*)*',component:AdminView}]});createApp({render:()=>h(RouterView)}).use(router).mount('#app');

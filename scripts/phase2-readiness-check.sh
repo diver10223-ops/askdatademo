@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd); cd "$ROOT"
 PYTHON=python; [ -x .venv/bin/python ] && PYTHON=.venv/bin/python
+CHECK_DATA_DIR=$(mktemp -d); export ASKDATA_DATA_DIR="$CHECK_DATA_DIR"
 fail(){ echo "FAIL: $*" >&2; exit 1; }
 PYTHONPATH=backend "$PYTHON" -m pytest -q backend/tests/test_phase2.py || fail phase2-tests
 PYTHONPATH=backend "$PYTHON" scripts/phase2-matrix.py || fail phase2-matrix

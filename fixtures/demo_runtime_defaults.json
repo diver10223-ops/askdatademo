@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "execution": {
+    "allow_fixture_fallback": true,
+    "allow_parameter_defaults": true,
+    "require_real_model": false,
+    "require_real_datasource": false,
+    "simulation_speed_ms": 120,
+    "max_snapshot_bytes": 262144,
+    "max_snapshot_rows": 100
+  },
+  "interaction": {"empty_message": "请输入问题"},
+  "compliance": {"sensitive_words": ["身份证", "明细", "涉密"], "intercept_message": "涉密或明细数据已按合规规则拦截"},
+  "understanding": {
+    "organizations": ["全行", "北京分行", "上海分行"],
+    "metric_keywords": {"零售": "零售贷款", "对公": "对公贷款", "企业贷款": "对公贷款", "贷款": "贷款投放"},
+    "metric_codes": {"贷款投放": "loan_cur", "零售贷款": "retail_cur", "对公贷款": "corporate_cur"},
+    "default_org_by_role": {"admin": "全行", "beijing": "北京分行", "retail": "全行"},
+    "default_metric_by_role": {"admin": "loan_cur", "beijing": "loan_cur", "retail": "retail_cur"},
+    "default_date": "2026-03-31",
+    "date_values": {"2026年3月": "2026-03-31", "2026": "2026-03-31", "去年同期": "2026-03-31", "为什么": "2026-03-31"},
+    "ambiguous_scenario": "scenario-3",
+    "completion_scenario": "scenario-7",
+    "missing_message": "请补充机构、时间和指标",
+    "missing_options": ["2026年3月", "全行", "北京分行", "贷款投放"],
+    "recommendation_message": "请选择更明确的合规问句"
+  },
+  "semantic": {
+    "dashboard_scenario": "scenario-2",
+    "dashboard_keywords": ["大盘", "驾驶舱"],
+    "dashboard_names": {"admin": "全行经营指标驾驶舱", "beijing": "北京分行经营驾驶舱", "retail": "零售信贷经营驾驶舱"},
+    "dashboard_links": {
+      "admin": [{"name": "总行行长经营驾驶舱", "url": "/dashboards/head-office.html"}],
+      "beijing": [{"name": "分行行长经营驾驶舱", "url": "/dashboards/branch-president.html"}],
+      "retail": [{"name": "业务负责人专项驾驶舱", "url": "/dashboards/business-owner.html"}]
+    },
+    "attribution_keywords": ["同比", "为什么", "下降"]
+  },
+  "assets": {
+    "table": "dws_loan_aggr_wide",
+    "org_field": "org_name",
+    "date_field": "stat_dt",
+    "metric_fields": {
+      "loan_cur": {"current": "loan_cur", "previous": "loan_last"},
+      "retail_cur": {"current": "retail_cur", "previous": "retail_last"},
+      "corporate_cur": {"current": "corporate_cur", "previous": "corporate_last"}
+    },
+    "sql_templates": {"query": "SELECT {org_field}, {date_field}, {columns} FROM {table} WHERE {org_field} = :org AND {date_field} = :date"},
+    "dashboard_url": "builtin://dashboard"
+  },
+  "query": {"attribution_scenario": "scenario-4", "attribution_fixture": "attribution", "attribution_business_label": "归因维度 Fixture"},
+  "model_prompts": {"L2": "根据问题、角色和上下文返回结构化参数JSON。", "L7": "根据查询结果返回简洁、准确的中文经营分析JSON。"},
+  "interpretation": {
+    "empty": "查询已完成。",
+    "single": "{org}在 {date} 的查询结果为 {current:.2f}。",
+    "comparison": "{org}本期为 {current:.2f}，上期为 {previous:.2f}，同比 {rate:.2f}%。",
+    "attribution_suffix": " 主要受阶段性放款节奏影响。",
+    "chart": {"type": "bar", "title": "经营指标查询结果", "category_field": "org_name", "series": ["current_value", "previous_value"]},
+    "guides": ["查看该指标的同比变化", "按机构对比该指标", "打开当前角色经营驾驶舱"]
+  },
+  "scenario_bindings": {
+    "scenario-1": {"intent": "query", "required": ["org", "date", "metric"], "terminal_layer": "L7", "sql_template": "query", "chart": true},
+    "scenario-2": {"intent": "dashboard", "required": [], "terminal_layer": "L3", "sql_template": null, "chart": false},
+    "scenario-3": {"intent": "recommendation", "required": [], "terminal_layer": "L2", "sql_template": null, "chart": false},
+    "scenario-4": {"intent": "attribution", "required": ["org", "date", "metric"], "terminal_layer": "L7", "sql_template": "attribution", "chart": true},
+    "scenario-5": {"intent": "permission", "required": [], "terminal_layer": "L2", "sql_template": null, "chart": false},
+    "scenario-6": {"intent": "context", "required": ["org", "date", "metric"], "terminal_layer": "L7", "sql_template": "query", "chart": true},
+    "scenario-7": {"intent": "completion", "required": ["org", "date", "metric"], "terminal_layer": "L2/L7", "sql_template": "query", "chart": true},
+    "scenario-8": {"intent": "followup_attribution", "required": ["org", "date", "metric"], "terminal_layer": "L7", "sql_template": "attribution", "chart": true}
+  },
+  "masking": {"fields": ["name", "customer_name", "id_no", "identity_no", "phone", "mobile", "姓名", "身份证", "手机号"]}
+}
