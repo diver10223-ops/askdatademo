@@ -11,14 +11,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import jakarta.annotation.PreDestroy;
 
 @RestController
 @RequestMapping("/api/v2/execution")
@@ -29,6 +31,7 @@ public class PlatformExecutionController {
     private final ExecutionClient executionClient;
     private final PlatformExecutionService executionService;
     private final ObjectMapper mapper;
+    private final ExecutorService sseExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public PlatformExecutionController(ExecutionClient executionClient, PlatformExecutionService executionService,
                                        ObjectMapper mapper) {
@@ -67,20 +70,21 @@ public class PlatformExecutionController {
     }
 
     @GetMapping(value="/queries/{requestId}/events",produces=MediaType.TEXT_EVENT_STREAM_VALUE)
-    StreamingResponseBody events(@org.springframework.web.bind.annotation.PathVariable UUID requestId,
+    SseEmitter events(@org.springframework.web.bind.annotation.PathVariable UUID requestId,
                                  @RequestHeader(value="Last-Event-ID",defaultValue="0")long lastEventId){
         if (lastEventId < 0) throw new IllegalArgumentException("Last-Event-ID不能为负数");
-        return output -> {
+        executionService.request(requestId); // fail before starting async work when the request does not exist
+        var emitter = new SseEmitter(TimeUnit.HOURS.toMillis(1));
+        sseExecutor.submit(() -> stream(requestId, lastEventId, emitter));
+        return emitter;
+    }
+
+    void stream(UUID requestId, long lastEventId, SseEmitter emitter) {
+        try {
             long cursor = lastEventId;
             long heartbeat = System.nanoTime();
-            output.write("retry: 1000\n\n".getBytes(StandardCharsets.UTF_8));
-            output.flush();
+            emitter.send(SseEmitter.event().reconnectTime(1000));
             while (!Thread.currentThread().isInterrupted()) {
-                var state = executionService.request(requestId);
-                if (!TERMINAL_STATUSES.contains(state.status())) {
-                    try { executionService.detail(requestId, state.traceId()); }
-                    catch (RuntimeException ignored) { /* reconciler will retry; stream remains available */ }
-                }
                 var rows = executionService.events(requestId, cursor);
                 for (var row : rows) {
                     cursor = row.eventId();
@@ -89,20 +93,21 @@ public class PlatformExecutionController {
                             "requestId", requestId.toString(), "traceId", row.traceId(),
                             "occurredAt", row.createdAt().toString(),
                             "payload", mapper.readTree(row.payloadJson())));
-                    output.write(("id: " + row.eventId() + "\nevent: " + row.eventType()
-                            + "\ndata: " + data + "\n\n").getBytes(StandardCharsets.UTF_8));
-                    output.flush();
+                    emitter.send(SseEmitter.event().id(String.valueOf(row.eventId())).name(row.eventType()).data(data));
                 }
-                state = executionService.request(requestId);
-                if (TERMINAL_STATUSES.contains(state.status()) && rows.isEmpty()) break;
+                var state = executionService.request(requestId);
+                if (TERMINAL_STATUSES.contains(state.status()) && rows.isEmpty()) { emitter.complete(); break; }
                 if (System.nanoTime() - heartbeat > TimeUnit.SECONDS.toNanos(10)) {
-                    output.write(": heartbeat\n\n".getBytes(StandardCharsets.UTF_8));
-                    output.flush();
+                    emitter.send(SseEmitter.event().comment("heartbeat"));
                     heartbeat = System.nanoTime();
                 }
-                try { Thread.sleep(250); }
+                try { Thread.sleep(1000); }
                 catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
             }
-        };
+        } catch (Exception exception) {
+            emitter.completeWithError(exception);
+        }
     }
+
+    @PreDestroy void closeSseExecutor(){sseExecutor.shutdownNow();}
 }

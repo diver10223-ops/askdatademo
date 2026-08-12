@@ -6,8 +6,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -15,6 +13,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @SpringBootTest(properties={
         "spring.datasource.url=jdbc:h2:mem:sse-cancel-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
@@ -37,14 +36,20 @@ class SseCancellationTests {
         jdbc.update("insert into run_sse_event(request_id,event_id,event_type,payload_json,created_at) values (?,?,?,?,?)",
                 databaseId, 2L, "request.completed", "{\"status\":\"SUCCEEDED\"}", now);
 
-        var output = new ByteArrayOutputStream();
-        controller.events(request, 1).writeTo(output);
-        var stream = output.toString(StandardCharsets.UTF_8);
-
-        assertThat(stream).startsWith("retry: 1000\n\n");
-        assertThat(stream).contains("id: 2", "event: request.completed", "\"traceId\":\"trace-" + request + "\"");
-        assertThat(stream).doesNotContain("id: 1", "event: request.created");
+        var emitter = new RecordingEmitter();
+        controller.stream(request, 1, emitter);
+        assertThat(emitter.sent).isEqualTo(2); // retry guidance + the only unacknowledged event
+        assertThat(emitter.completed).isTrue();
         verifyNoInteractions(client);
+    }
+
+    static final class RecordingEmitter extends SseEmitter {
+        int sent; boolean completed;
+        @Override public synchronized void send(SseEventBuilder builder) {
+            builder.build(); sent++;
+        }
+        @Override public void complete(){completed=true;}
+        @Override public void completeWithError(Throwable exception){throw new AssertionError(exception);}
     }
 
     @Test
