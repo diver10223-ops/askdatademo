@@ -316,7 +316,7 @@ M4退出条件：后台管理功能由数据库驱动；配置发布、回滚和
 
 ### P351 保持七层AI边界
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 - L1：确定性交互与请求控制；
 - L2：模型可抽取意图和参数，代码完成标准化、权限和缺参裁决；
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P350已通过，下一步P351固化七层AI边界 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P351已通过，下一步P352完整SQL安全 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P350已完成，下一步执行P351。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P351已完成，下一步执行P352。
 
 ## 11. 执行记录模板
 
@@ -812,12 +812,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | Python执行事实回写Java平台库、共享事件存储、取消最终态和归档在M6完成；真实客户Provider与网络证据仍属于M8 |
 | 批准 | 满足P350退出条件，可进入P351七层AI边界 |
 
+### P351执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P351 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | 全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests/test_ai_layer_boundaries.py`；全新`ASKDATA_DATA_DIR`执行Python全量`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests` |
+| 证据 | P351专项5 tests和Python全量38 tests全部通过；L2只接收已发布机构、指标、日期候选，忽略模型SQL及未知键，由确定性代码覆盖问句事实并执行权限、缺参裁决；L1/L3/L4/L5/L6保持确定性路径；L7只接收L6结果，模型候选必须与确定性答案的十进制数值、机构和日期事实一致，否则回退确定性答案 |
+| 结论 | AI只在L2承担受约束抽取、在L7承担经事实一致性门禁的措辞生成；模型输出不拥有权限、安全、SQL执行或最终事实裁决权，当前L3/L5不启用可选AI候选能力 |
+| 遗留问题 | L3向量候选和L5模型候选属于可选增强且本版本不启用；完整AST SQL安全、方言和绕过矩阵在P352完成；模型异常和上下文污染矩阵在P353完成 |
+| 批准 | 满足P351退出条件，可进入P352完整SQL安全 |
+
 ## 12. 下一步
 
 M0—M4已经完成，M5执行中。当前执行链为：
 
 ~~~text
-P351 保持七层AI边界
+P352 完整SQL安全
   ↓
 M5 七层集成与完整SQL安全
   ↓
