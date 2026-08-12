@@ -3,7 +3,7 @@
 > 文件：`PRODUCT_V2_EXECUTION_PLAN.md`  
 > 版本：V1.0  
 > 日期：2026-08-12  
-> 状态：执行中（M1）
+> 状态：执行中（M6）
 > 目标分支：`release/product-v2-test`  
 > 稳定基线分支：`release/v1-v2-test`
 
@@ -334,7 +334,7 @@ M4退出条件：后台管理功能由数据库驱动；配置发布、回滚和
 
 ### P353 七层回归矩阵
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 覆盖正常、缺参、推荐、拦截、多轮、多SQL、部分成功、取消、重试、模型异常、数据源异常和上下文污染。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P352已通过，下一步P353七层回归矩阵 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | M5已关闭，下一步P360运行事实持久化 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P352已完成，下一步执行P353。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5已完成，下一步执行P360。
 
 ## 11. 执行记录模板
 
@@ -840,14 +840,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 客户方言版本、Schema/表列、时间/机构字段、只读账号、Explain权限及扫描阈值在M8真实联调确认；这些条件不以本地模拟证据冒充通过 |
 | 批准 | 满足P352退出条件，可进入P353七层回归矩阵 |
 
+### P353执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P353 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | 全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`PYTHONPATH=backend .venv/bin/python scripts/phase2-matrix.py`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test`；`bash scripts/v2-p313-smoke.sh`；`python scripts/check-contract-compatibility.py` |
+| 证据 | Python全量57 tests、Java全量22 tests、原三角色八场景33轮矩阵、冻结契约和Java→Python真实L1—L7烟测全部通过；矩阵覆盖正常、缺参、推荐、拦截、多轮、多SQL、部分成功、模型/数据源异常、取消、重试及上下文污染；L2/L7可选模型超时改为确定性降级，L7事实一致性测试继续通过；运行中取消在L7前形成CANCELLED，Session身份/权限快照污染和幂等冲突均拒绝 |
+| 结论 | M5退出条件全部满足：Java/Python企业链路、原33轮矩阵、完整SQL安全及L7事实一致性均有直接自动化证据；模型或数据源异常不静默伪造成功，Demo Fixture降级和POC失败策略保持区分 |
+| 遗留问题 | 客户真实模型、数据源和网络异常注入仍属于M8；运行事实跨服务归一化、归档、队列超载、指标告警和压测在M6继续完成 |
+| 批准 | M5完成，可进入M6运行态、队列、可观测与可靠性 |
+
 ## 12. 下一步
 
-M0—M4已经完成，M5执行中。当前执行链为：
+M0—M5已经完成，M6执行中。当前执行链为：
 
 ~~~text
-P353 七层回归矩阵
-  ↓
-M5 七层集成与完整SQL安全
+P360 会话、请求和事件持久化
   ↓
 M6 用户端和管理端闭环
   ↓

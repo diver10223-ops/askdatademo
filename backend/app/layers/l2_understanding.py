@@ -7,7 +7,9 @@ class UnderstandingLayer:
   q=c.question; role=c.role_id; permissions=c.permissions or {}; runtime=runtime_for(c); compliance=runtime.section('compliance'); rules=runtime.section('understanding')
   model_output={}
   if self.registry and getattr(self.registry,'phase',1)==2:
-   model_output=await self.registry.model.structured_generate('L2',{'question':q,'role':role,'scenario_id':c.scenario_id,'context':c.parameters,'_system_prompt':runtime.require('model_prompts.L2')})
+   try: model_output=await self.registry.model.structured_generate('L2',{'question':q,'role':role,'scenario_id':c.scenario_id,'context':c.parameters,'_system_prompt':runtime.require('model_prompts.L2')})
+   except Exception: model_output={'_provider_error':True}
+   if not isinstance(model_output,dict): model_output={'_provider_error':True}
   sensitive=compliance.get('sensitive_words',[])
   if any(x in q for x in sensitive): return LayerResult('BLOCKED',{'message':runtime.require('compliance.intercept_message')},True,'COMPLIANCE_BLOCKED')
   known_orgs=set(rules.get('organizations',[])); requested_org=next((x for x in known_orgs if x in q),None)
@@ -34,7 +36,7 @@ class UnderstandingLayer:
   semantic=runtime.section('semantic'); dashboard_intent=c.scenario_id==semantic.get('dashboard_scenario') or any(x in q for x in semantic.get('dashboard_keywords',[]))
   if dashboard_intent:
    c.parameters=inherited
-   return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','validated_model_parameters':validated_model_parameters,'deterministic_final_decision':True})
+   return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output and not model_output.get('_provider_error') else 'DETERMINISTIC_FALLBACK','validated_model_parameters':validated_model_parameters,'model_status':'ERROR_FALLBACK' if model_output.get('_provider_error') else 'AVAILABLE','deterministic_final_decision':True})
   completion=rules.get('completion_scenario')
   is_completion=c.scenario_id==completion
   if is_completion and c.parent_request_id and 'metric' not in inherited and runtime.policy.allow_parameter_defaults: inherited['metric']=rules.get('default_metric_by_role',{}).get(role)
@@ -45,4 +47,4 @@ class UnderstandingLayer:
    c.parameters=inherited
    return LayerResult('WAITING_INPUT',{'message':rules.get('missing_message','请补充机构、时间和指标'),'options':rules.get('missing_options',[])},True,'MISSING_PARAMETER')
   c.parameters=inherited
-  return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','validated_model_parameters':validated_model_parameters,'deterministic_final_decision':True})
+  return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output and not model_output.get('_provider_error') else 'DETERMINISTIC_FALLBACK','validated_model_parameters':validated_model_parameters,'model_status':'ERROR_FALLBACK' if model_output.get('_provider_error') else 'AVAILABLE','deterministic_final_decision':True})
