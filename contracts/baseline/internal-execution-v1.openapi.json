@@ -1,0 +1,22 @@
+{
+  "openapi": "3.1.0",
+  "info": {"version": "1.0.0"},
+  "paths": {
+    "/internal/v1/health": {"get": {}},
+    "/internal/v1/executions": {"post": {}},
+    "/internal/v1/executions/{requestId}": {"get": {}},
+    "/internal/v1/executions/{requestId}/cancel": {"post": {}},
+    "/internal/v1/executions/{requestId}/events": {"get": {}}
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {"required": ["status", "version"], "properties": {"status": {}, "version": {}}},
+      "ExecutionCommand": {"required": ["requestId", "sessionId", "subjectId", "roleIds", "question", "executionMode", "permissionSnapshot", "configVersionId", "timeoutMs"], "properties": {"requestId": {}, "sessionId": {}, "parentRequestId": {}, "subjectId": {}, "roleIds": {}, "question": {}, "scenarioId": {}, "executionMode": {}, "permissionSnapshot": {}, "configVersionId": {}, "providerProfileId": {}, "timeoutMs": {}}},
+      "ExecutionAccepted": {"required": ["requestId", "status", "traceId"], "properties": {"requestId": {}, "status": {}, "traceId": {}, "idempotentReplay": {}}},
+      "ExecutionState": {"required": ["requestId", "status", "traceId", "lastEventId"], "properties": {"requestId": {}, "status": {}, "traceId": {}, "lastEventId": {}, "lastLayer": {}, "terminationReason": {}, "result": {}}},
+      "ExecutionStatus": {"enum": ["PENDING", "RUNNING", "WAITING_INPUT", "SHORT_CIRCUITED", "BLOCKED", "PARTIAL_SUCCESS", "SUCCEEDED", "FAILED", "CANCELLATION_REQUESTED", "CANCELLED", "TIMED_OUT"]},
+      "ExecutionEvent": {"required": ["eventId", "eventType", "requestId", "traceId", "occurredAt", "payload"], "properties": {"eventId": {}, "eventType": {}, "requestId": {}, "traceId": {}, "occurredAt": {}, "payload": {}}},
+      "ErrorResponse": {"required": ["code", "message", "traceId", "timestamp"], "properties": {"code": {}, "message": {}, "traceId": {}, "timestamp": {}, "details": {}}}
+    }
+  }
+}

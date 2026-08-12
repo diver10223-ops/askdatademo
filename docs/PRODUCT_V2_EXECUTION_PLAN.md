@@ -202,7 +202,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P312 固化Java/Python内部契约
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 覆盖API版本、服务鉴权、Session、Request、Parent Request、权限快照、配置版本、幂等键、超时、取消、错误码、Trace和SSE事件。
 
@@ -502,7 +502,7 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P311已通过，下一步P312固化内部契约 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P311—P312已通过，下一步P313建立兼容入口 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
@@ -602,14 +602,28 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 当前交互Shell尚未加载Dev Container Java Feature，仓库测试已用隔离Temurin JDK 21通过；容器再次重建后复核全局`java -version` |
 | 批准 | 满足P311退出条件，作为P312契约实施基线 |
 
+### P312执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P312 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `python scripts/check-contract-compatibility.py`；`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | `contracts/internal-execution-v1.openapi.json`及冻结兼容基线；Python 31 passed；Java 4 tests、0 failures；未鉴权内部健康请求返回401，正确服务令牌返回200 |
+| 结论 | 契约覆盖版本、服务鉴权、Session/Request/Parent Request、主体与角色、权限快照、配置版本、Provider、幂等键、超时、取消、错误码、Trace及可续传SSE事件；Java DTO和Python Pydantic模型受同一契约测试约束 |
+| 遗留问题 | 本地默认服务令牌仅用于开发；非开发环境必须通过秘密引用注入，轮换与KMS适配在M3/M8验证 |
+| 批准 | 满足P312退出条件，作为P313联调基线 |
+
 ## 12. 下一步
 
 M0已经完成。当前执行链为：
 
 ~~~text
-P312 固化Java/Python内部契约
-  ↓
 P313 建立兼容入口
+  ↓
+P320 冻结逻辑模型与客户可变项
 ~~~
 
 后续V2.0开发不得修改稳定标签工作树；稳定缺陷按hotfix回流规则处理。

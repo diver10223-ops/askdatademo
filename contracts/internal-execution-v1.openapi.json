@@ -1,0 +1,79 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "AskData Java-Python Internal Execution API", "version": "1.0.0"},
+  "servers": [{"url": "http://127.0.0.1:8000"}],
+  "security": [{"serviceToken": []}],
+  "paths": {
+    "/internal/v1/health": {
+      "get": {
+        "operationId": "executionHealth",
+        "responses": {"200": {"description": "Execution plane is ready", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthResponse"}}}}}
+      }
+    },
+    "/internal/v1/executions": {
+      "post": {
+        "operationId": "createExecution",
+        "parameters": [
+          {"$ref": "#/components/parameters/TraceId"},
+          {"$ref": "#/components/parameters/IdempotencyKey"}
+        ],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ExecutionCommand"}}}},
+        "responses": {
+          "202": {"description": "Accepted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ExecutionAccepted"}}}},
+          "409": {"description": "Idempotency conflict", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
+          "422": {"description": "Invalid command", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+        }
+      }
+    },
+    "/internal/v1/executions/{requestId}": {
+      "get": {
+        "operationId": "getExecution",
+        "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"$ref": "#/components/parameters/TraceId"}],
+        "responses": {"200": {"description": "Execution state", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ExecutionState"}}}}}
+      }
+    },
+    "/internal/v1/executions/{requestId}/cancel": {
+      "post": {
+        "operationId": "cancelExecution",
+        "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"$ref": "#/components/parameters/TraceId"}, {"$ref": "#/components/parameters/IdempotencyKey"}],
+        "responses": {"202": {"description": "Cancellation accepted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ExecutionAccepted"}}}}}
+      }
+    },
+    "/internal/v1/executions/{requestId}/events": {
+      "get": {
+        "operationId": "streamExecutionEvents",
+        "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"$ref": "#/components/parameters/TraceId"}, {"name": "Last-Event-ID", "in": "header", "required": false, "schema": {"type": "integer", "minimum": 0}}],
+        "responses": {"200": {"description": "SSE stream; event data conforms to ExecutionEvent", "content": {"text/event-stream": {"schema": {"type": "string"}}}}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"serviceToken": {"type": "apiKey", "in": "header", "name": "X-Service-Token"}},
+    "parameters": {
+      "TraceId": {"name": "X-Trace-Id", "in": "header", "required": true, "schema": {"type": "string", "minLength": 1, "maxLength": 128}},
+      "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "schema": {"type": "string", "minLength": 8, "maxLength": 128}},
+      "RequestId": {"name": "requestId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}
+    },
+    "schemas": {
+      "HealthResponse": {"type": "object", "additionalProperties": false, "required": ["status", "version"], "properties": {"status": {"const": "ok"}, "version": {"type": "string"}}},
+      "ExecutionCommand": {
+        "type": "object", "additionalProperties": false,
+        "required": ["requestId", "sessionId", "subjectId", "roleIds", "question", "executionMode", "permissionSnapshot", "configVersionId", "timeoutMs"],
+        "properties": {
+          "requestId": {"type": "string", "format": "uuid"}, "sessionId": {"type": "string", "format": "uuid"},
+          "parentRequestId": {"type": ["string", "null"], "format": "uuid"}, "subjectId": {"type": "string", "minLength": 1},
+          "roleIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "question": {"type": "string", "minLength": 1, "maxLength": 4000}, "scenarioId": {"type": ["string", "null"]},
+          "executionMode": {"enum": ["DEMO", "POC", "PRODUCTION"]}, "permissionSnapshot": {"type": "object"},
+          "configVersionId": {"type": "string", "minLength": 1}, "providerProfileId": {"type": ["string", "null"]},
+          "timeoutMs": {"type": "integer", "minimum": 1000, "maximum": 300000}
+        }
+      },
+      "ExecutionAccepted": {"type": "object", "additionalProperties": false, "required": ["requestId", "status", "traceId"], "properties": {"requestId": {"type": "string", "format": "uuid"}, "status": {"enum": ["PENDING", "CANCELLATION_REQUESTED", "CANCELLED"]}, "traceId": {"type": "string"}, "idempotentReplay": {"type": "boolean", "default": false}}},
+      "ExecutionState": {"type": "object", "required": ["requestId", "status", "traceId", "lastEventId"], "properties": {"requestId": {"type": "string", "format": "uuid"}, "status": {"$ref": "#/components/schemas/ExecutionStatus"}, "traceId": {"type": "string"}, "lastEventId": {"type": "integer", "minimum": 0}, "lastLayer": {"type": ["string", "null"], "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7", null]}, "terminationReason": {"type": ["string", "null"]}, "result": {"type": ["object", "array", "null"]}}},
+      "ExecutionStatus": {"enum": ["PENDING", "RUNNING", "WAITING_INPUT", "SHORT_CIRCUITED", "BLOCKED", "PARTIAL_SUCCESS", "SUCCEEDED", "FAILED", "CANCELLATION_REQUESTED", "CANCELLED", "TIMED_OUT"]},
+      "ExecutionEvent": {"type": "object", "additionalProperties": false, "required": ["eventId", "eventType", "requestId", "traceId", "occurredAt", "payload"], "properties": {"eventId": {"type": "integer", "minimum": 1}, "eventType": {"enum": ["request.created", "request.started", "layer.started", "layer.completed", "answer.delta", "request.waiting_input", "request.completed", "request.failed", "request.cancelled", "request.timed_out"]}, "requestId": {"type": "string", "format": "uuid"}, "traceId": {"type": "string"}, "occurredAt": {"type": "string", "format": "date-time"}, "payload": {"type": "object"}}},
+      "ErrorResponse": {"type": "object", "additionalProperties": false, "required": ["code", "message", "traceId", "timestamp"], "properties": {"code": {"enum": ["INVALID_INPUT", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "CONFIG_VERSION_UNAVAILABLE", "PROVIDER_UNAVAILABLE", "EXECUTION_TIMEOUT", "EXECUTION_FAILED", "INTERNAL_ERROR"]}, "message": {"type": "string"}, "traceId": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"}, "details": {"type": "object"}}}
+    }
+  }
+}

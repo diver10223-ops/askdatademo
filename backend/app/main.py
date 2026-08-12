@@ -16,8 +16,10 @@ from .providers.phase2 import network_diagnostics,OpenAICompatibleProvider,Click
 from .sql_security import SQLPolicy
 from .runtime import RuntimeConfigError,resolve_runtime
 from .runtime.publisher import publish_runtime
+from .internal_api import router as internal_router
 now=lambda:datetime.now(timezone.utc).isoformat()
 app=FastAPI(title='AskData Phase 1 + Phase 2',version='2.0.0'); engine=Engine(); active_engines={}
+app.include_router(internal_router)
 class SessionIn(BaseModel): role_id:str=Field(pattern='^(admin|beijing|retail)$'); execution_mode:str=Field(default='PHASE1_DEMO',pattern='^(PHASE1_DEMO|PHASE2_DEMO|PHASE2_POC)$'); provider_profile_id:str|None=None
 class QueryIn(BaseModel): session_id:str; question:str=Field(min_length=1,max_length=1000); scenario_id:str|None=None; parent_request_id:str|None=None
 class DraftIn(BaseModel): name:str; payload:dict
