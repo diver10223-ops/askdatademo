@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet
 
 from app.credentials import CredentialError, decrypt_secret, encrypt_secret
 from app.providers.phase2 import ClickHouseProvider, OpenAICompatibleProvider, RetryPolicy
-from app.sql_security import SQLPolicy, SQLSecurityError, secure_sql
+from app.sql_security import DEFAULT_ANALYTIC_COLUMNS,SQLPolicy, SQLSecurityError, secure_sql
 from app.db import connect,restore_baseline
 from app.config import PLATFORM_DB
 from app.main import ProviderProfileIn,SessionIn,create_phase2_profile,enable_phase2_profile,phase2_profiles,create_session
@@ -29,6 +29,8 @@ class Handler(BaseHTTPRequestHandler):
         length=int(self.headers.get('content-length','0')); self.rfile.read(length)
         if '/chat/completions' in self.path:
             body=json.dumps({"choices":[{"message":{"content":json.dumps({"answer":"provider answer"})}}]}).encode()
+        elif 'EXPLAIN+ESTIMATE' in self.path:
+            body=b'{"data":[{"rows":10,"marks":1}]}'
         else: body=json.dumps({"data":[{"org_name":"全行","stat_dt":"2026-03-31","current_value":980.5}]}).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
 
@@ -46,8 +48,8 @@ def test_credentials_encrypted_and_key_required(monkeypatch):
 
 
 def test_sql_security():
-    policy=SQLPolicy(frozenset({'dws_loan_aggr_wide'}),100)
-    assert secure_sql('SELECT * FROM dws_loan_aggr_wide WHERE stat_dt=:date',policy).endswith('LIMIT 100')
+    policy=SQLPolicy(frozenset({'dws_loan_aggr_wide'}),100,allowed_columns=DEFAULT_ANALYTIC_COLUMNS)
+    assert secure_sql('SELECT org_name FROM dws_loan_aggr_wide WHERE stat_dt=:date',policy).endswith('LIMIT 100')
     for sql in ('DELETE FROM dws_loan_aggr_wide','SELECT * FROM secret','SELECT 1; SELECT 2'):
         try: secure_sql(sql,policy); assert False
         except SQLSecurityError: pass
@@ -59,10 +61,10 @@ def test_openai_and_clickhouse_wire_protocols():
         model=OpenAICompatibleProvider(base,'key','model',retry)
         assert asyncio.run(model.health_check())['status']=='READY'
         assert asyncio.run(model.structured_generate('L7',{'answer':'x','_system_prompt':'Return JSON'}))['answer']=='provider answer'
-        data=ClickHouseProvider(base,'user','pass','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'})),retry)
+        data=ClickHouseProvider(base,'user','pass','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'}),dialect='clickhouse',allowed_columns=DEFAULT_ANALYTIC_COLUMNS),retry)
         assert asyncio.run(data.health_check())['status']=='READY'
         assert asyncio.run(data.schema_check())['status']=='READY'
-        rows=asyncio.run(data.execute('SELECT org_name, stat_dt, loan_cur AS current_value FROM dws_loan_aggr_wide WHERE org_name=:org AND stat_dt=:date',{'org':'全行','date':'2026-03-31'}))
+        rows=asyncio.run(data.execute('SELECT org_name, stat_dt, loan_cur AS current_value FROM dws_loan_aggr_wide WHERE org_name=:org AND stat_dt=:date',{'org':'全行','date':'2026-03-31'},{'orgs':['全行']}))
         assert rows[0]['current_value']==980.5
     finally: http.shutdown()
 
@@ -110,6 +112,9 @@ def test_phase2_http_query_and_sse(monkeypatch):
             detail=client.get(f"/api/v1/queries/{query['request_id']}").json()
             assert detail['request']['mode']=='PHASE2_POC' and detail['request']['status']=='SUCCEEDED' and detail['result']
             assert detail['layers'][1]['provider']=='OPENAI_COMPATIBLE' and detail['layers'][5]['provider']=='ClickHouseProvider'
+            actual=detail['sql_executions'][0]
+            assert '__scope_orgs_' in actual['actual_sql'] and actual['actual_sql'].endswith('LIMIT 1000')
+            assert detail['layers'][5]['output']['security'][0]['explain']['estimated_rows']==10
             assert detail['layers'][-1]['output']['chart']['type']=='bar' and len(detail['layers'][-1]['output']['guides'])==3
             dashboard=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'打开经营驾驶舱','scenario_id':'scenario-2'}).json()
             with client.stream('GET',f"/api/v1/queries/{dashboard['request_id']}/events") as response: ''.join(response.iter_text())

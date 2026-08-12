@@ -3,7 +3,7 @@ from .config import PLATFORM_DB
 from .credentials import decrypt_secret
 from .db import connect
 from .providers.phase2 import ClickHouseProvider, MySQLProvider, OpenAICompatibleProvider, Phase2ProviderRegistry, RetryPolicy
-from .sql_security import SQLPolicy
+from .sql_security import DEFAULT_ANALYTIC_COLUMNS,SQLPolicy
 
 
 def public_profile(row) -> dict:
@@ -16,7 +16,8 @@ def build_registry(profile_id: str, require_enabled: bool = True) -> Phase2Provi
     config=json.loads(row["public_config"]); secret=decrypt_secret(row["encrypted_credentials"])
     retry=RetryPolicy(float(config.get("timeout",30)),int(config.get("retries",2)),float(config.get("backoff",.25)),int(config.get("max_concurrency",4)))
     model=OpenAICompatibleProvider(config["model_base_url"],secret["model_api_key"],config["model"],retry,{"temperature":config.get("model_temperature",.2),"top_p":config.get("model_top_p",.9),"max_tokens":config.get("model_max_tokens",2048),"response_format":{"type":"json_object"}},config.get("model_system_prompt",''))
-    policy=SQLPolicy(frozenset(config.get("allowed_tables",[])),int(config.get("max_rows",1000)),int(config.get("max_time_range_days",366)),retry.timeout)
+    dialect="clickhouse" if row["datasource_type"]=="CLICKHOUSE" else "mysql"
+    policy=SQLPolicy(frozenset(config.get("allowed_tables",[])),int(config.get("max_rows",1000)),int(config.get("max_time_range_days",366)),retry.timeout,dialect,frozenset(config.get("allowed_columns",DEFAULT_ANALYTIC_COLUMNS)),max_estimated_scan_rows=int(config.get("max_estimated_scan_rows",1_000_000)),require_scope_permissions=True)
     if row["datasource_type"]=="CLICKHOUSE": datasource=ClickHouseProvider(config["datasource_url"],config["datasource_username"],secret["datasource_password"],config["database"],policy,retry)
     else: datasource=MySQLProvider(config["datasource_host"],int(config.get("datasource_port",3306)),config["datasource_username"],secret["datasource_password"],config["database"],policy,retry,bool(config.get("datasource_tls",True)))
     return Phase2ProviderRegistry(model,datasource,profile_id)

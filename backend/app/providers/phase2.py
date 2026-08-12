@@ -10,7 +10,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..sql_security import SQLPolicy, secure_sql
+from ..sql_security import SQLPolicy, secure_query, validate_explain
 
 
 @dataclass
@@ -85,14 +85,25 @@ class ClickHouseProvider:
             request=urllib.request.Request(self.url.rstrip('/')+'/?'+query); request.add_header('Authorization','Basic '+base64.b64encode(f'{self.username}:{self.password}'.encode()).decode())
             with urllib.request.urlopen(request,timeout=self.policy.timeout) as response: return {row['name'] for row in json.loads(response.read()).get('data',[])}
         tables=await self.runner.run(call); missing=sorted(self.sql_policy.allowed_tables-tables); return {'status':'READY' if not missing else 'FAILED','missing_tables':missing,'table_count':len(tables)}
-    async def execute(self, sql: str, parameters: dict) -> list[dict[str,Any]]:
-        safe=secure_sql(sql,self.sql_policy)
-        for name in parameters: safe=safe.replace(f':{name}',f'{{{name}:String}}')
-        query={"database":self.database,"query":safe+' FORMAT JSON',**{f"param_{key}":value for key,value in parameters.items()}}
+    async def execute(self, sql: str, parameters: dict, permissions: dict | None = None) -> list[dict[str,Any]]:
+        secured=secure_query(sql,self.sql_policy,parameters,permissions); safe=secured.sql
+        for name in secured.parameters: safe=safe.replace(f':{name}',f'{{{name}:String}}')
+        auth='Basic '+base64.b64encode(f'{self.username}:{self.password}'.encode()).decode()
+        if self.sql_policy.explain_required:
+            explain_query={"database":self.database,"query":'EXPLAIN ESTIMATE '+safe+' FORMAT JSON',**{f"param_{key}":value for key,value in secured.parameters.items()}}
+            def explain_call():
+                request=urllib.request.Request(self.url.rstrip('/')+'/?'+urllib.parse.urlencode(explain_query),data=b'',method='POST'); request.add_header('Authorization',auth)
+                with urllib.request.urlopen(request,timeout=self.policy.timeout) as response:
+                    rows=json.loads(response.read()).get('data',[]); return {'estimated_rows':sum(int(row.get('rows',0)) for row in rows),'estimated_cost':sum(float(row.get('marks',row.get('rows',0))) for row in rows)}
+            estimate=validate_explain(await self.runner.run(explain_call),self.sql_policy)
+        else: estimate={"estimated_rows":0,"estimated_cost":0.0}
+        self.last_parameters=secured.parameters
+        self.last_security={**secured.__dict__,"parameters":sorted(secured.parameters),"explain":estimate}
+        query={"database":self.database,"query":safe+' FORMAT JSON',**{f"param_{key}":value for key,value in secured.parameters.items()}}
         if self.request_id: query['query_id']=self.request_id
         def call():
             request=urllib.request.Request(self.url.rstrip('/')+'/?'+urllib.parse.urlencode(query),data=b'',method='POST')
-            request.add_header('Authorization','Basic '+base64.b64encode(f'{self.username}:{self.password}'.encode()).decode())
+            request.add_header('Authorization',auth)
             with urllib.request.urlopen(request,timeout=self.policy.timeout) as response: return json.loads(response.read()).get('data',[])
         return await self.runner.run(call)
     async def cancel(self, request_id: str):
@@ -116,15 +127,31 @@ class MySQLProvider:
             finally: connection.close()
         value=await asyncio.wait_for(asyncio.to_thread(query),self.policy.timeout); result.update({"status":"READY" if value==1 else "FAILED","provider":"MYSQL","authenticated":value==1,"schema":self.database}); return result
     def set_request_id(self,request_id): self.request_id=request_id
-    async def execute(self, sql: str, parameters: dict) -> list[dict[str,Any]]:
+    async def execute(self, sql: str, parameters: dict, permissions: dict | None = None) -> list[dict[str,Any]]:
         import pymysql
-        safe=secure_sql(sql,self.sql_policy)
-        for name in parameters: safe=safe.replace(f':{name}',f'%({name})s')
+        secured=secure_query(sql,self.sql_policy,parameters,permissions); safe=secured.sql
+        for name in secured.parameters: safe=safe.replace(f':{name}',f'%({name})s')
+        def estimates(value):
+            rows=[]; costs=[]
+            def visit(node):
+                if isinstance(node,dict):
+                    if 'rows_examined_per_scan' in node: rows.append(int(node['rows_examined_per_scan']))
+                    if 'query_cost' in node: costs.append(float(node['query_cost']))
+                    for child in node.values(): visit(child)
+                elif isinstance(node,list):
+                    for child in node: visit(child)
+            visit(value); return {'estimated_rows':sum(rows),'estimated_cost':max(costs,default=float(sum(rows)))}
         def call():
             connection=pymysql.connect(host=self.host,port=self.port,user=self.username,password=self.password,database=self.database,connect_timeout=int(self.policy.timeout),read_timeout=int(self.policy.timeout),cursorclass=pymysql.cursors.DictCursor,ssl={} if self.use_tls else None)
             self.active_connection=connection
             try:
-                with connection.cursor() as cursor: cursor.execute(safe,parameters); return list(cursor.fetchall())
+                with connection.cursor() as cursor:
+                    if self.sql_policy.explain_required:
+                        cursor.execute('EXPLAIN FORMAT=JSON '+safe,secured.parameters); raw=cursor.fetchone(); plan=json.loads(next(iter(raw.values()))); estimate=validate_explain(estimates(plan),self.sql_policy)
+                    else: estimate={"estimated_rows":0,"estimated_cost":0.0}
+                    self.last_parameters=secured.parameters
+                    self.last_security={**secured.__dict__,"parameters":sorted(secured.parameters),"explain":estimate}
+                    cursor.execute(safe,secured.parameters); return list(cursor.fetchall())
             finally: connection.close(); self.active_connection=None
         return await asyncio.wait_for(asyncio.to_thread(call),self.policy.timeout)
     async def schema_check(self):

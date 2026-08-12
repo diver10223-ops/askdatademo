@@ -8,7 +8,7 @@ class MockModelProvider:
   content={k:v for k,v in payload.items() if k!='_system_prompt'}; return {'task':task,'deterministic':True,'text':content.get('answer') or content.get('question','').strip()}
 class SQLiteDataSourceProvider:
  async def health_check(self): return {'status':'READY' if WAREHOUSE_DB.exists() else 'FAILED','provider':'SQLITE','read_only':True}
- async def execute(self,sql,parameters):
+ async def execute(self,sql,parameters,permissions=None):
   uri=f'file:{WAREHOUSE_DB}?mode=ro'; c=sqlite3.connect(uri,uri=True); c.row_factory=sqlite3.Row
   try: return [dict(x) for x in c.execute(sql,parameters).fetchall()]
   finally: c.close()

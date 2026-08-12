@@ -6,3 +6,4 @@ pytest==8.4.1
 cryptography==45.0.5
 PyMySQL==1.1.1
 httpx==0.28.1
+sqlglot==30.16.0

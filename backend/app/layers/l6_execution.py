@@ -8,7 +8,12 @@ class ExecutionLayer:
   if hasattr(self.registry.datasource,'set_request_id'): self.registry.datasource.set_request_id(c.request_id)
   for index,plan in enumerate(c.sql_plan):
    try:
-    if plan['source']!='MOCK_FIXTURE': c.results.extend(await self.registry.datasource.execute(plan['actual_sql'],plan['parameters']))
+    if plan['source']!='MOCK_FIXTURE':
+     c.results.extend(await self.registry.datasource.execute(plan['actual_sql'],plan['parameters'],c.permissions))
+     if getattr(self.registry.datasource,'last_security',None):
+      plan['security']=self.registry.datasource.last_security
+      plan['actual_sql']=plan['security']['sql']
+      plan['parameters']=dict(getattr(self.registry.datasource,'last_parameters',plan['parameters']))
     else: c.results.extend(await self.registry.fixture.execute(runtime.section('query').get('attribution_fixture','attribution'),plan['parameters']))
     plan['execution_status']='SUCCEEDED'
    except Exception as exc:
@@ -20,4 +25,4 @@ class ExecutionLayer:
     c.results.extend(await self.registry.fixture.execute(runtime.section('query').get('attribution_fixture','attribution'),plan['parameters']))
     plan['source']='MOCK_FIXTURE'; plan['fallback_reason']=type(exc).__name__
     plan['execution_status']='SUCCEEDED_WITH_FALLBACK'
-  return LayerResult(output={'rows':c.results,'row_count':len(c.results),'sources':[x['source'] for x in c.sql_plan],'failures':failures})
+  return LayerResult(output={'rows':c.results,'row_count':len(c.results),'sources':[x['source'] for x in c.sql_plan],'failures':failures,'security':[x['security'] for x in c.sql_plan if x.get('security')]})

@@ -328,7 +328,7 @@ M4退出条件：后台管理功能由数据库驱动；配置发布、回滚和
 
 ### P352 完整SQL安全
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 实现AST、多方言、只读与单语句、表列白名单、数据权限注入、时间/行数限制、成本/Explain、扫描量、复杂子查询和绕过测试。安全组件拥有最终拒绝权。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P351已通过，下一步P352完整SQL安全 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P352已通过，下一步P353七层回归矩阵 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P351已完成，下一步执行P352。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P352已完成，下一步执行P353。
 
 ## 11. 执行记录模板
 
@@ -826,12 +826,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | L3向量候选和L5模型候选属于可选增强且本版本不启用；完整AST SQL安全、方言和绕过矩阵在P352完成；模型异常和上下文污染矩阵在P353完成 |
 | 批准 | 满足P351退出条件，可进入P352完整SQL安全 |
 
+### P352执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P352 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | 全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`PYTHONPATH=backend .venv/bin/python scripts/phase2-matrix.py`；`python scripts/check-contract-compatibility.py` |
+| 证据 | 固定`sqlglot 30.16.0`实现MySQL/ClickHouse AST安全；专项测试覆盖单语句只读、库/Schema/表列白名单、星号拒绝、逐物理分支时间边界、参数化机构权限注入、时间/行数/AST/JOIN/子查询限制、危险函数/导出/锁绕过和Explain扫描量门禁；Python全量53 tests、三角色八场景33轮及冻结契约通过；HTTP闭环断言L6持久化实际SQL含权限谓词和LIMIT，安全证据含Explain估算 |
+| 结论 | 正则SQL检查已替换为AST最终拒绝组件；生产Provider缺少机构权限即拒绝，执行前完成Explain估算，实际执行和审计使用安全改写后的SQL及参数；数据源超时和取消仍由Provider确定性控制 |
+| 遗留问题 | 客户方言版本、Schema/表列、时间/机构字段、只读账号、Explain权限及扫描阈值在M8真实联调确认；这些条件不以本地模拟证据冒充通过 |
+| 批准 | 满足P352退出条件，可进入P353七层回归矩阵 |
+
 ## 12. 下一步
 
 M0—M4已经完成，M5执行中。当前执行链为：
 
 ~~~text
-P352 完整SQL安全
+P353 七层回归矩阵
   ↓
 M5 七层集成与完整SQL安全
   ↓

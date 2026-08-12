@@ -10,7 +10,7 @@ from app.db import connect,restore_baseline
 from app.engine import Engine
 from app.models import PipelineContext
 from app.providers.phase2 import ClickHouseProvider,OpenAICompatibleProvider,Phase2ProviderRegistry,RetryPolicy
-from app.sql_security import SQLPolicy
+from app.sql_security import DEFAULT_ANALYTIC_COLUMNS,SQLPolicy
 
 class WireMock(BaseHTTPRequestHandler):
  def log_message(self,*_): pass
@@ -18,12 +18,13 @@ class WireMock(BaseHTTPRequestHandler):
  def do_POST(self):
   length=int(self.headers.get('content-length','0')); payload=self.rfile.read(length)
   if '/chat/completions' in self.path: body=json.dumps({'choices':[{'message':{'content':json.dumps({'answer':'Phase 2 provider interpretation'})}}]}).encode()
+  elif 'EXPLAIN+ESTIMATE' in self.path: body=json.dumps({'data':[{'rows':10,'marks':1}]}).encode()
   else: body=json.dumps({'data':[{'org_name':'全行','stat_dt':'2026-03-31','current_value':980.5,'previous_value':900.0}]}).encode()
   self.send_response(200); self.end_headers(); self.wfile.write(body)
 
 def main():
  restore_baseline(); server=ThreadingHTTPServer(('127.0.0.1',0),WireMock); Thread(target=server.serve_forever,daemon=True).start(); base=f'http://127.0.0.1:{server.server_port}'
- retry=RetryPolicy(2,0); registry=Phase2ProviderRegistry(OpenAICompatibleProvider(base,'test','model',retry),ClickHouseProvider(base,'u','p','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'})),retry),'wire-profile'); engine=Engine(registry)
+ retry=RetryPolicy(2,0); registry=Phase2ProviderRegistry(OpenAICompatibleProvider(base,'test','model',retry),ClickHouseProvider(base,'u','p','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'}),dialect='clickhouse',allowed_columns=DEFAULT_ANALYTIC_COLUMNS),retry),'wire-profile'); engine=Engine(registry)
  root=Path(__file__).parents[1]
  baseline=json.loads((root/'fixtures/official_baseline_v1.json').read_text())
  baseline['runtime']=json.loads((root/'fixtures/demo_runtime_defaults.json').read_text())
