@@ -300,7 +300,7 @@ M3退出条件：身份、权限、审批、发布、回滚和审计端到端测
 
 ### P343 配置兼容切换
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 按“数据库读写→旧资源只读→停止旧写路径→保留灾备种子”切换。禁止无对账的双写。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P342已通过，下一步P343执行配置兼容切换 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | M4已通过，下一步P350集成Java入口与Python七层 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P342已完成，下一步执行P343。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P343已完成，下一步执行P350。
 
 ## 11. 执行记录模板
 
@@ -784,14 +784,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 客户KMS/Vault产品、模型/数据库品牌版本、网络/TLS及真实凭据在M8联调，当前测试诊断不得作为真实环境通过证据 |
 | 批准 | 满足P342退出条件，可进入P343配置兼容切换 |
 
+### P343执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P343 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `python scripts/check-contract-compatibility.py`；`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V11建立配置源单例状态；写入源被数据库约束固定为DATABASE、旧资源写入固定关闭；同哈希种子重复导入只对账且不改变导入时间，管理API新增场景后官方JSON SHA256不变；不同哈希种子覆盖被拒绝；切换后旧读关闭但灾备种子保留；契约兼容、Python 32 tests和Java 21 tests全部通过 |
+| 结论 | V2管理端只写规范化数据库，不双写JSON或旧SQLite；旧Python管理写路径仅属于隔离的V1.x演示入口，不进入V2入口；官方JSON作为初始化/灾备种子保留，日常管理事实以数据库为准 |
+| 遗留问题 | 灾备种子恢复命令、备份校验和目标数据库演练在M7完成；客户真实配置迁移和对账在M8执行 |
+| 批准 | M4退出条件满足，可进入M5七层集成与完整SQL安全 |
+
 ## 12. 下一步
 
 M0—M3已经完成，M4执行中。当前执行链为：
 
 ~~~text
-P342 模型、数据源和秘密管理
-  ↓
-P343 配置兼容切换
+P350 Java入口与Python七层集成
   ↓
 M5 七层集成与完整SQL安全
   ↓

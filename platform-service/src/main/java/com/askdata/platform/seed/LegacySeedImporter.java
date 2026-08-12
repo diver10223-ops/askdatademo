@@ -38,22 +38,40 @@ public class LegacySeedImporter {
         var baseline = mapper.readTree(baselineBytes);
         var runtime = mapper.readTree(runtimeBytes);
         var resources = mapper.readTree(resourcesBytes);
+        var baselineHash = sha256(baselineBytes);
+        var runtimeHash = sha256(runtimeBytes);
+        var resourcesHash = sha256(resourcesBytes);
 
-        upsertRelease(baseline, sha256(baselineBytes));
+        // 已导入的相同种子只做对账并直接返回，绝不覆盖数据库中的日常管理事实。
+        if (importedWithHash("official_baseline", baselineHash)
+                && importedWithHash("runtime_defaults", runtimeHash)
+                && importedWithHash("legacy_admin_resources", resourcesHash)) {
+            return new ImportSummary(baseline.get("roles").size(), baseline.get("scenarios").size(),
+                    countCases(baseline), countTurns(baseline), resources.size(), baselineHash, runtimeHash);
+        }
+        if (count("select count(*) from cfg_seed_import") > 0) {
+            throw new IllegalStateException("数据库已导入不同版本的种子；禁止覆盖，灾备恢复必须使用独立恢复流程");
+        }
+
+        upsertRelease(baseline, baselineHash);
         importIdentity(baseline);
         importAssets(baseline);
         importFlow(baseline);
-        importReleaseItem("runtime_defaults", "demo-runtime-defaults", runtime, sha256(runtimeBytes));
+        importReleaseItem("runtime_defaults", "demo-runtime-defaults", runtime, runtimeHash);
         for (var resource : resources) {
             importReleaseItem("legacy_admin:" + resource.get("kind").asText(), resource.get("id").asText(),
                     resource, sha256(mapper.writeValueAsBytes(resource)));
         }
-        upsertLedger("official_baseline", baselinePath, sha256(baselineBytes), countBaselineRows(baseline));
-        upsertLedger("runtime_defaults", runtimePath, sha256(runtimeBytes), runtime.size());
-        upsertLedger("frontend_baseline", baselinePath, sha256(baselineBytes), countBaselineRows(baseline));
-        upsertLedger("legacy_admin_resources", resourcesPath, sha256(resourcesBytes), resources.size());
+        upsertLedger("official_baseline", baselinePath, baselineHash, countBaselineRows(baseline));
+        upsertLedger("runtime_defaults", runtimePath, runtimeHash, runtime.size());
+        upsertLedger("frontend_baseline", baselinePath, baselineHash, countBaselineRows(baseline));
+        upsertLedger("legacy_admin_resources", resourcesPath, resourcesHash, resources.size());
         return new ImportSummary(baseline.get("roles").size(), baseline.get("scenarios").size(),
-                countCases(baseline), countTurns(baseline), resources.size(), sha256(baselineBytes), sha256(runtimeBytes));
+                countCases(baseline), countTurns(baseline), resources.size(), baselineHash, runtimeHash);
+    }
+
+    private boolean importedWithHash(String sourceCode, String sourceHash) {
+        return count("select count(*) from cfg_seed_import where source_code=? and source_hash=?", sourceCode, sourceHash) == 1;
     }
 
     private void upsertRelease(JsonNode baseline, String hash) throws IOException {
