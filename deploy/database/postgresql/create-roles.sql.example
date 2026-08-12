@@ -1,0 +1,40 @@
+-- Run as a PostgreSQL security administrator after supplying psql variables.
+-- Example: psql -v migration_password='...' -v app_password='...' -v readonly_password='...' -f create-roles.sql.example
+-- Never commit real values or place them in shell history in production.
+
+\if :{?migration_password}
+\else
+\echo 'migration_password is required'
+\quit
+\endif
+\if :{?app_password}
+\else
+\echo 'app_password is required'
+\quit
+\endif
+\if :{?readonly_password}
+\else
+\echo 'readonly_password is required'
+\quit
+\endif
+
+CREATE ROLE askdata_migration LOGIN PASSWORD :'migration_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+CREATE ROLE askdata_app LOGIN PASSWORD :'app_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+CREATE ROLE askdata_readonly LOGIN PASSWORD :'readonly_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+
+GRANT CONNECT ON DATABASE askdata_platform TO askdata_migration, askdata_app, askdata_readonly;
+GRANT USAGE, CREATE ON SCHEMA public TO askdata_migration;
+GRANT USAGE ON SCHEMA public TO askdata_app, askdata_readonly;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE askdata_migration IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO askdata_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE askdata_migration IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO askdata_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE askdata_migration IN SCHEMA public
+  GRANT SELECT ON TABLES TO askdata_readonly;
+
+-- Existing objects are granted after each migration release by the security-controlled deployment job.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO askdata_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO askdata_app;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO askdata_readonly;
+REVOKE CREATE ON SCHEMA public FROM askdata_app, askdata_readonly;

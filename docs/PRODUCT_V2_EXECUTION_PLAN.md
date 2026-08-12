@@ -228,7 +228,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P321 建立版本化DDL和账号边界
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 使用正式迁移工具管理DDL；区分迁移账号、应用读写账号和只读查询账号；开发基线方言与客户方言适配分离。
 
@@ -502,7 +502,7 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P320已通过，下一步P321建立版本化DDL和账号边界 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P320—P321已通过，下一步P322实现基础平台表 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
@@ -643,6 +643,20 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 结论 | 逻辑模型与Java/Python数据所有权冻结；数据库、统一认证、KMS、Redis、队列、对象存储和客户保留期通过适配点隔离，不阻塞产品基线 |
 | 遗留问题 | 客户生产选型及合规值继续保持M8/M9 BLOCKED；P321将开发方言定为PostgreSQL兼容并验证H2测试方言 |
 | 批准 | 满足P320退出条件，作为Flyway DDL唯一逻辑基线 |
+
+### P321执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P321 |
+| 状态 | PASS（客户数据库真实恢复演练仍归M8） |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | `DatabaseMigrationTests`：空库Flyway升级、二次执行0迁移、validate成功、样例元数据可读；应用账号获授权DML/查询但`CREATE TABLE`抛出SQL权限异常；总计Java 6 tests、0 failures |
+| 结论 | Spring应用连接与Flyway迁移连接由独立环境变量注入；PostgreSQL角色模板区分迁移、应用和只读账号且不含默认生产密码；迁移只追加，失败采用快照恢复后修正迁移前滚 |
+| 遗留问题 | H2仅证明产品账号边界语义；客户数据库品牌、真实授权、备份恢复、主从及方言证据在M8执行并保持BLOCKED |
+| 批准 | 满足P321产品基线退出条件，可进入P322核心表迁移 |
 
 ## 12. 下一步
 

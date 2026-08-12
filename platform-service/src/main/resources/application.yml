@@ -8,6 +8,9 @@ spring:
   flyway:
     enabled: true
     validate-migration-naming: true
+    url: ${ASKDATA_MIGRATION_DB_URL:${ASKDATA_PLATFORM_DB_URL:jdbc:h2:file:./data/platform-v2;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}}
+    user: ${ASKDATA_MIGRATION_DB_USERNAME:${ASKDATA_PLATFORM_DB_USERNAME:askdata}}
+    password: ${ASKDATA_MIGRATION_DB_PASSWORD:${ASKDATA_PLATFORM_DB_PASSWORD:askdata-local-only}}
   h2:
     console:
       enabled: false
