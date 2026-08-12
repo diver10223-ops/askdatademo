@@ -294,7 +294,7 @@ M3退出条件：身份、权限、审批、发布、回滚和审计端到端测
 
 ### P342 模型、数据源和秘密管理
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 拆分非敏感Profile和密文/秘密引用；实现创建、轮换、禁用、诊断和审计；主密钥永不进入平台数据库、日志、导出或快照。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P341已通过，下一步P342实现模型、数据源和秘密管理 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P342已通过，下一步P343执行配置兼容切换 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P341已完成，下一步执行P342。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P342已完成，下一步执行P343。
 
 ## 11. 执行记录模板
 
@@ -769,6 +769,20 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 结论 | V2管理API从规范化表创建和查询场景并记录审计；当前发布版本写入新Session快照，发布指针切换后活动Session仍固定使用原版本，新Session使用新版本 |
 | 遗留问题 | Fixture运行时模式强制和Java/Python执行链使用发布快照在M5完成；客户实际场景、话术、模型和数据源在M8联调 |
 | 批准 | 满足P341退出条件，可进入P342模型、数据源和秘密管理 |
+
+### P342执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P342 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=ProviderManagementTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V10新增模型配置、能力、限额、运行Profile、Provider诊断和秘密轮换日志；管理API响应不含外部秘密引用，原始秘密值格式被拒绝；模型/数据源当前版本只有诊断成功才可启用；秘密轮换或撤销自动停用依赖；数据库约束拒绝POC/PROD Fixture；Java总计19 tests、0 failures、0 errors |
+| 结论 | 非敏感Provider参数与秘密引用分离；平台库不保存秘密值或主密钥，审计仅记录指纹、状态和诊断结果；测试适配器只在显式属性下启用，客户实际Provider仍通过适配器接入 |
+| 遗留问题 | 客户KMS/Vault产品、模型/数据库品牌版本、网络/TLS及真实凭据在M8联调，当前测试诊断不得作为真实环境通过证据 |
+| 批准 | 满足P342退出条件，可进入P343配置兼容切换 |
 
 ## 12. 下一步
 

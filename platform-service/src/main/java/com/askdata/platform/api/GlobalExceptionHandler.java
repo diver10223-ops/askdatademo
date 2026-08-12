@@ -1,6 +1,7 @@
 package com.askdata.platform.api;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.askdata.platform.provider.ProviderManagementException;
 import org.slf4j.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,11 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("请求参数无效");
         return response(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_INPUT", message);
+    }
+
+    @ExceptionHandler(ProviderManagementException.class)
+    ResponseEntity<ApiError> providerManagement(ProviderManagementException exception) {
+        return response(HttpStatus.BAD_REQUEST, "PROVIDER_CONFIGURATION_INVALID", exception.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
