@@ -33,8 +33,14 @@ public class PermissionDecisionService {
         var version = jdbc.queryForObject("select permission_version from iam_user where id=?", Long.class, userId);
         var roles = jdbc.queryForList("select r.code from iam_role r join iam_user_role ur on ur.role_id=r.id where ur.user_id=? and r.status='ENABLED' and (ur.valid_from is null or ur.valid_from<=?) and (ur.valid_to is null or ur.valid_to>?) order by r.code",
                 String.class, userId, OffsetDateTime.now(), OffsetDateTime.now());
-        return new PermissionSnapshot(userId, version, roles);
+        var orgs=effectiveNames(userId,ResourceType.ORG,"select distinct o.id,o.name from iam_org o join iam_role_org_scope s on s.org_id=o.id join iam_user_role ur on ur.role_id=s.role_id where ur.user_id=? and s.effect='ALLOW' and o.status='ENABLED'");
+        var metrics=effectiveNames(userId,ResourceType.METRIC,"select distinct m.id,m.name from meta_metric m join iam_role_metric_scope s on s.metric_id=m.id join iam_user_role ur on ur.role_id=s.role_id where ur.user_id=? and s.effect='ALLOW' and m.status='ENABLED'");
+        var tables=effectiveNames(userId,ResourceType.TABLE,"select distinct t.id,t.table_name from meta_data_table t join iam_role_table_scope s on s.table_id=t.id join iam_user_role ur on ur.role_id=s.role_id where ur.user_id=? and s.effect='ALLOW' and t.status='ENABLED'");
+        var fields=effectiveNames(userId,ResourceType.FIELD,"select distinct f.id,f.field_name from meta_data_field f join iam_role_field_scope s on s.field_id=f.id join iam_user_role ur on ur.role_id=s.role_id where ur.user_id=? and s.effect='ALLOW' and f.status='ENABLED'");
+        return new PermissionSnapshot(userId, version, roles,orgs,metrics,tables,fields);
     }
+
+    private java.util.List<String> effectiveNames(long userId,ResourceType type,String sql){return jdbc.query(sql,(rs,n)->new NamedResource(rs.getLong(1),rs.getString(2)),userId).stream().filter(item->decide(userId,type,item.id(),"QUERY").allowed()).map(NamedResource::name).distinct().sorted().toList();}
 
     private Effects roleEffect(long userId, ResourceType type, long resourceId, String action) {
         var table = switch (type) {
@@ -57,6 +63,7 @@ public class PermissionDecisionService {
 
     public enum ResourceType { ORG, METRIC, TABLE, FIELD, FEATURE }
     public record Decision(boolean allowed, String reason) {}
-    public record PermissionSnapshot(long userId, long permissionVersion, java.util.List<String> roleCodes) {}
+    public record PermissionSnapshot(long userId, long permissionVersion, java.util.List<String> roleCodes,java.util.List<String> orgs,java.util.List<String> metrics,java.util.List<String> tables,java.util.List<String> fields) {}
+    private record NamedResource(long id,String name){}
     private record Effects(boolean allow, boolean deny) {}
 }

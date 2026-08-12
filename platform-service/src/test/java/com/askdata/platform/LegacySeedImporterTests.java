@@ -51,6 +51,9 @@ class LegacySeedImporterTests {
         assertThat(count("flow_dashboard_role")).isEqualTo(3);
         assertThat(count("flow_fixture")).isEqualTo(1);
         assertThat(count("flow_wording")).isEqualTo(1);
+        assertThat(count("iam_role_org_scope")).isEqualTo(7);
+        assertThat(count("iam_role_metric_scope")).isEqualTo(7);
+        assertThat(count("iam_role_table_scope")).isEqualTo(3);
     }
 
     private int[] counts() {

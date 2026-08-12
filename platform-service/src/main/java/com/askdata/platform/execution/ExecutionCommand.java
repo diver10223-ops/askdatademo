@@ -15,6 +15,7 @@ public record ExecutionCommand(
         ExecutionMode executionMode,
         Map<String, Object> permissionSnapshot,
         String configVersionId,
+        Map<String, Object> configSnapshot,
         String providerProfileId,
         int timeoutMs
 ) {

@@ -20,7 +20,7 @@ class InternalContractTests {
         var command = new ExecutionCommand(
                 UUID.randomUUID(), UUID.randomUUID(), null, "user-1", List.of("analyst"),
                 "贷款余额是多少？", "scenario-1", ExecutionCommand.ExecutionMode.POC,
-                Map.of("orgIds", List.of("head-office")), "official-v1", null, 30_000
+                Map.of("orgIds", List.of("head-office")), "official-v1", Map.of("runtime", Map.of()), null, 30_000
         );
         var serialized = mapper.valueToTree(command);
         var contract = mapper.readTree(Files.readString(Path.of("../contracts/internal-execution-v1.openapi.json")));

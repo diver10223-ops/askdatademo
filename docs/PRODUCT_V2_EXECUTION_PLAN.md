@@ -310,7 +310,7 @@ M4退出条件：后台管理功能由数据库驱动；配置发布、回滚和
 
 ### P350 Java入口与Python七层集成
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 请求身份、权限快照、配置版本和Trace由Java入口传递到Python；Python返回状态、层轨迹、SQL事实和结果引用。重试必须幂等。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | M4已通过，下一步P350集成Java入口与Python七层 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P350已通过，下一步P351固化七层AI边界 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P343已完成，下一步执行P350。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P350已完成，下一步执行P351。
 
 ## 11. 执行记录模板
 
@@ -798,12 +798,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 灾备种子恢复命令、备份校验和目标数据库演练在M7完成；客户真实配置迁移和对账在M8执行 |
 | 批准 | M4退出条件满足，可进入M5七层集成与完整SQL安全 |
 
+### P350执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P350 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `python scripts/check-contract-compatibility.py`；全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test`；`JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH bash scripts/v2-p313-smoke.sh` |
+| 证据 | Java入口仅接收Session、问题、父Request和场景，由数据库活动Session推导主体、角色、有效机构/指标/表/字段权限快照、发布配置快照和模式；Python真实Engine生成L1—L7、SQL事实、脱敏结果快照和可续传SSE；数据库持久化幂等键/命令摘要，服务重启后可重放；POC缺少启用Provider时明确FAILED且0层、0 SQL、0 Fixture；契约兼容、Python 33 tests、Java 22 tests及P350烟测通过 |
+| 结论 | 原P313模拟成功路径已移除；Java控制面与Python执行面职责保持冻结边界，Session身份/权限/配置快照在Python侧不可变，内部API仍使用服务令牌、Trace和幂等键 |
+| 遗留问题 | Python执行事实回写Java平台库、共享事件存储、取消最终态和归档在M6完成；真实客户Provider与网络证据仍属于M8 |
+| 批准 | 满足P350退出条件，可进入P351七层AI边界 |
+
 ## 12. 下一步
 
-M0—M3已经完成，M4执行中。当前执行链为：
+M0—M4已经完成，M5执行中。当前执行链为：
 
 ~~~text
-P350 Java入口与Python七层集成
+P351 保持七层AI边界
   ↓
 M5 七层集成与完整SQL安全
   ↓

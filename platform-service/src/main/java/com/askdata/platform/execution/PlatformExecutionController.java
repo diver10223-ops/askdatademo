@@ -17,9 +17,11 @@ import java.util.UUID;
 @RequestMapping("/api/v2/execution")
 public class PlatformExecutionController {
     private final ExecutionClient executionClient;
+    private final PlatformExecutionService executionService;
 
-    public PlatformExecutionController(ExecutionClient executionClient) {
+    public PlatformExecutionController(ExecutionClient executionClient, PlatformExecutionService executionService) {
         this.executionClient = executionClient;
+        this.executionService = executionService;
     }
 
     @GetMapping("/health")
@@ -27,13 +29,13 @@ public class PlatformExecutionController {
         return executionClient.health();
     }
 
-    @PostMapping("/simulate")
+    @PostMapping("/queries")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    ExecutionAccepted simulate(@RequestBody ExecutionCommand command,
+    ExecutionAccepted submit(@RequestBody PlatformExecutionService.QueryCommand command,
                                @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                HttpServletRequest request) {
         var traceId = request.getAttribute(TraceIdFilter.ATTRIBUTE).toString();
         var key = idempotencyKey == null || idempotencyKey.isBlank() ? UUID.randomUUID().toString() : idempotencyKey;
-        return executionClient.submit(command, traceId, key);
+        return executionService.submit(command, traceId, key);
     }
 }

@@ -199,6 +199,22 @@ public class LegacySeedImporter {
             jdbc.update("insert into flow_sql_template(code,name,template_type,sql_text,dialect,max_rows,timeout_seconds,checksum,status) values (?,?,?,?,?,?,?,?,?)",
                     "official-loan-query", "官方贷款查询", "PARAMETERIZED", sql, "SQLITE", 1000, 30, sha256(sql.getBytes(StandardCharsets.UTF_8)), "ENABLED");
         }
+        importOfficialDataScopes(baseline, tableId, metrics);
+    }
+
+    private void importOfficialDataScopes(JsonNode baseline,long tableId,Map<String,String> metricCodes){
+        for(var role:baseline.get("roles")){
+            var roleId=id("select id from iam_role where code=?",role.get("id").asText());
+            for(var org:role.get("orgs")){
+                var orgId=id("select id from iam_org where code=?",orgCode(org.asText()));
+                if(count("select count(*) from iam_role_org_scope where role_id=? and org_id=? and scope_type='EXACT'",roleId,orgId)==0)jdbc.update("insert into iam_role_org_scope(role_id,org_id,scope_type,effect) values (?,?,'EXACT','ALLOW')",roleId,orgId);
+            }
+            for(var metric:role.get("metrics")){
+                var metricId=id("select id from meta_metric where code=?",metricCodes.get(metric.asText()));
+                if(count("select count(*) from iam_role_metric_scope where role_id=? and metric_id=?",roleId,metricId)==0)jdbc.update("insert into iam_role_metric_scope(role_id,metric_id,detail_allowed,export_allowed,effect) values (?,?,false,false,'ALLOW')",roleId,metricId);
+            }
+            if(count("select count(*) from iam_role_table_scope where role_id=? and table_id=?",roleId,tableId)==0)jdbc.update("insert into iam_role_table_scope(role_id,table_id,detail_allowed,effect) values (?,?,false,'ALLOW')",roleId,tableId);
+        }
     }
 
     private void importFlow(JsonNode baseline) {
