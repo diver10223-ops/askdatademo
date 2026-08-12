@@ -42,4 +42,10 @@ public class ExecutionClient {
                 .header("X-Service-Token",serviceToken).header("X-Trace-Id",traceId)
                 .retrieve().body(new ParameterizedTypeReference<>(){});
     }
+
+    public Map<String,Object> cancel(UUID requestId,String traceId,String idempotencyKey) {
+        return client.post().uri("/internal/v1/executions/{id}/cancel",requestId)
+                .header("X-Service-Token",serviceToken).header("X-Trace-Id",traceId).header("Idempotency-Key",idempotencyKey)
+                .retrieve().body(new ParameterizedTypeReference<>(){});
+    }
 }

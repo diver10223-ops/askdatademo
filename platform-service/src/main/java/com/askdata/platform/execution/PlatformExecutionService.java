@@ -8,9 +8,13 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 @Service
 public class PlatformExecutionService {
+    private static final List<String> TERMINAL_STATUSES = List.of(
+            "WAITING_INPUT", "SHORT_CIRCUITED", "BLOCKED", "PARTIAL_SUCCESS",
+            "SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT");
     private final JdbcTemplate jdbc;
     private final ExecutionClient client;
     private final RuntimeFactPersistenceService facts;
@@ -38,10 +42,24 @@ public class PlatformExecutionService {
     }
 
     public Map<String,Object> detail(UUID requestId,String traceId){return facts.synchronize(requestId,client.state(requestId,traceId));}
+    public Map<String,Object> cancel(UUID requestId,String actor,String idempotencyKey){
+        var request=request(requestId);if(terminal(request.status()))return Map.of("requestId",requestId.toString(),"status",request.status(),"idempotentReplay",true);
+        jdbc.update("update run_request set cancel_requested=true,status='CANCELLATION_REQUESTED',cancelled_by=?,cancelled_at=coalesce(cancelled_at,current_timestamp) where public_id=?",actor,requestId.toString());
+        return propagateCancellation(requestId,request.traceId(),idempotencyKey);
+    }
+    public Map<String,Object> propagateCancellation(UUID requestId,String traceId,String idempotencyKey){
+        try{var response=client.cancel(requestId,traceId,idempotencyKey);jdbc.update("update run_request set cancel_attempts=cancel_attempts+1,cancel_propagated_at=current_timestamp where public_id=?",requestId.toString());return response;}
+        catch(RuntimeException exception){jdbc.update("update run_request set cancel_attempts=cancel_attempts+1 where public_id=?",requestId.toString());throw exception;}
+    }
+    public RequestState request(UUID requestId){return jdbc.query("select status,trace_id from run_request where public_id=?",(rs,n)->new RequestState(rs.getString(1),rs.getString(2)),requestId.toString()).stream().findFirst().orElseThrow(()->new IllegalArgumentException("执行请求不存在"));}
+    public List<SseEvent> events(UUID requestId,long after){return jdbc.query("select e.event_id,e.event_type,e.payload_json,e.created_at,r.trace_id from run_sse_event e join run_request r on r.id=e.request_id where r.public_id=? and e.event_id>? order by e.event_id",(rs,n)->new SseEvent(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getObject(4,OffsetDateTime.class),rs.getString(5)),requestId.toString(),after);}
+    private boolean terminal(String status){return TERMINAL_STATUSES.contains(status);}
 
     private <T>T read(String json,TypeReference<T> type){try{return mapper.readValue(json,type);}catch(Exception exception){throw new IllegalStateException("Session或配置快照无效",exception);}}
     public record QueryCommand(String sessionId,String parentRequestId,String question,String scenarioId,int timeoutMs){public QueryCommand{if(question==null||question.isBlank())throw new IllegalArgumentException("问题不能为空");if(timeoutMs<1000||timeoutMs>300000)throw new IllegalArgumentException("超时必须在1000到300000毫秒之间");}}
     private record SessionFacts(long id,String publicId,long userId,String roleJson,String permissionJson,long releaseId,String mode,String subjectPublicId,String releaseNo,String snapshotJson){}
     private record ExistingRequest(String publicId,String traceId){}
     private record Parent(long id,String publicId){}
+    public record RequestState(String status,String traceId){}
+    public record SseEvent(long eventId,String eventType,String payloadJson,OffsetDateTime createdAt,String traceId){}
 }

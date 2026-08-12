@@ -356,7 +356,7 @@ M5退出条件：Java/Python企业链路矩阵通过；原一期/二期33轮矩�
 
 ### P362 SSE与取消
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 支持Event ID、心跳、断线续传、共享事件存储、重连退避和取消传播；不依赖单机内存恢复。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P361已通过，下一步P362 SSE与取消 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P362已通过，下一步P363可观测与告警 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360—P361已完成，下一步执行P362。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360—P362已完成，下一步执行P363。
 
 ## 11. 执行记录模板
 
@@ -882,12 +882,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 当前公平队列为单Java实例产品基线，多实例共享配额需客户Redis/数据库锁服务并在M8适配；最终30/50并发值、队列等待和线程/连接池参数由P372产品压测及客户压测定标 |
 | 批准 | 满足P361退出条件，可进入P362 SSE与取消 |
 
+### P362执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P362 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | Java专项`./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=SseCancellationTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test`；全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`python scripts/check-contract-compatibility.py` |
+| 证据 | Java用户入口从平台库`run_sse_event`读取事件，使用单Request单调Event ID，返回SSE `retry: 1000`、10秒心跳并按`Last-Event-ID`仅重放未确认事件；终态流在发完共享事件后结束，运行态同步失败不关闭流而由对账器继续重试；Flyway V14记录取消发起人、时间、传播时间和尝试次数；取消先提交平台事实再调用Python，传播失败由数据库状态驱动的对账器重试，最终态同步回平台库；Java 28 tests、Python 57 tests及冻结契约兼容检查通过 |
+| 结论 | SSE恢复来源是共享平台数据库，不依赖Java或Python进程内存；浏览器/客户端可按Event ID断线续传并使用服务端退避提示；取消操作可审计、可重试、终态幂等，`PARTIAL_SUCCESS`和`TIMED_OUT`在Java/Python中统一作为终态处理 |
+| 遗留问题 | 产品基线事件轮询间隔、心跳和重连退避为默认值；多实例SSE连接容量、数据库轮询压力和最终参数在P372验证，客户网关超时及代理缓冲配置在M8适配 |
+| 批准 | 满足P362退出条件，可进入P363可观测与告警 |
+
 ## 12. 下一步
 
 M0—M5已经完成，M6执行中。当前执行链为：
 
 ~~~text
-P362 SSE与取消
+P363 可观测与告警
   ↓
 M6 用户端和管理端闭环
   ↓

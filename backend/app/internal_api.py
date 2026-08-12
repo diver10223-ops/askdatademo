@@ -222,7 +222,7 @@ async def cancel_execution(request_id: UUID, x_service_token: str | None = Heade
         state = _state_from_database(str(request_id), x_trace_id)
     except KeyError:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "message": "执行请求不存在"})
-    if state["status"] not in {"SUCCEEDED","FAILED","BLOCKED","SHORT_CIRCUITED","WAITING_INPUT","CANCELLED"}:
+    if state["status"] not in {"SUCCEEDED","FAILED","BLOCKED","SHORT_CIRCUITED","WAITING_INPUT","PARTIAL_SUCCESS","CANCELLED","TIMED_OUT"}:
         with connect(PLATFORM_DB) as db:
             db.execute("UPDATE requests SET cancel_requested=1,cancelled_by='java-platform',cancelled_at=? WHERE id=?", (datetime.now(timezone.utc).isoformat(), str(request_id)))
         running = _active_engines.get(str(request_id))

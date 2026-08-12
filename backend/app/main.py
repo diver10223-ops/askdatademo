@@ -120,7 +120,7 @@ async def cancel(rid:str):
  with connect(PLATFORM_DB) as db:
   q=db.execute('SELECT status,cancel_requested FROM requests WHERE id=?',(rid,)).fetchone()
   if not q: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'请求不存在'})
-  if q['status'] in ('SUCCEEDED','FAILED','BLOCKED','SHORT_CIRCUITED','WAITING_INPUT','CANCELLED'): return {'request_id':rid,'status':q['status'],'idempotent':True}
+  if q['status'] in ('SUCCEEDED','FAILED','BLOCKED','SHORT_CIRCUITED','WAITING_INPUT','PARTIAL_SUCCESS','CANCELLED','TIMED_OUT'): return {'request_id':rid,'status':q['status'],'idempotent':True}
   db.execute('UPDATE requests SET cancel_requested=1,cancelled_by=?,cancelled_at=? WHERE id=?',('demo-user',now(),rid))
  running=active_engines.get(rid)
  if running: await running.registry.datasource.cancel(rid)
