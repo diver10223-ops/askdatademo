@@ -947,7 +947,7 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
 | 日期与执行人 | 2026-08-12；Codex执行 |
 | 验证命令 | Java专项`./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=LegacySeedImporterTests,DatabaseRecoveryToolTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test`；`JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH bash scripts/v2-migration-drill.sh` |
-| 证据 | 升级前先生成数据库、匹配发布JAR、秘密恢复材料、Manifest和SHA256不可拆分恢复包`v2-20260812T095233Z-3235e81f`；从官方基线、运行时默认值和五条样例管理资源导入3角色、8场景、24用例、33轮、6发布项，以及7/7/3条机构/指标/表权限范围；所有场景、角色、用例、轮次和当前发布关联孤儿数为0；首次导入新增且仅新增一条`MIGRATE_LEGACY_BASELINE`防篡改审计；相同哈希重跑清单完全不变；恢复后迁移台账和迁移审计均为0，再前滚后的完整清单与首次升级逐字节一致，发布JAR和秘密恢复材料也一致；Java专项与全量32 tests全部通过 |
+| 证据 | 升级前先生成数据库、匹配发布JAR、秘密恢复材料、Manifest和SHA256不可拆分恢复包；从官方基线、运行时默认值和五条样例管理资源导入3角色、8场景、24用例、33轮、6发布项，以及7/7/3条机构/指标/表权限范围；所有场景、角色、用例、轮次和当前发布关联孤儿数为0；首次导入新增且仅新增一条`MIGRATE_LEGACY_BASELINE`防篡改审计；相同哈希重跑清单完全不变；恢复后迁移台账和迁移审计均为0，再前滚后的完整清单与首次升级逐字节一致，发布JAR和秘密恢复材料也一致；Java专项与全量32 tests全部通过；提交`101388bcd457af933a1868f2697b805d9102d9b9`干净工作区复跑恢复包`v2-20260812T095902Z-e09ab98c`，最终`MIGRATION_DRILL_PASS` |
 | 结论 | 产品基线已经具备一期/二期官方种子和样例管理导出的幂等迁移、哈希防覆盖、数量/关联/权限/发布/审计对账，以及以完整恢复包回滚后再前滚的可重复路径；操作步骤见`docs/PRODUCT_V2_DATABASE_MIGRATION_RUNBOOK.md` |
 | 遗留问题 | 当前演练证明仓库H2产品基线，不冒充客户数据库升级结论；客户数据库品牌/版本、真实V1.x导出、迁移窗口、账号授权、备份恢复、主从和业务对账在M8按客户环境复验 |
 | 批准 | 满足P371退出条件，可进入P372产品基线容量验证 |
