@@ -35,6 +35,14 @@ class LegacySeedImporterTests {
         assertThat(jdbc.queryForObject("select count(*) from cfg_seed_import where source_code='official_baseline' and source_hash=?", Integer.class, first.baselineSha256())).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from cfg_seed_import where source_code='frontend_baseline' and source_hash=?", Integer.class, first.baselineSha256())).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from cfg_seed_import where source_code='runtime_defaults' and source_hash=?", Integer.class, first.runtimeSha256())).isEqualTo(1);
+        assertThat(count("meta_data_source")).isEqualTo(1);
+        assertThat(count("meta_data_table")).isEqualTo(1);
+        assertThat(count("meta_data_field")).isEqualTo(8);
+        assertThat(count("meta_metric_mapping")).isEqualTo(3);
+        assertThat(count("meta_dimension_mapping")).isEqualTo(2);
+        assertThat(count("meta_synonym")).isEqualTo(2);
+        assertThat(count("meta_recommendation")).isEqualTo(7);
+        assertThat(count("meta_lineage_edge")).isEqualTo(3);
     }
 
     private int[] counts() {

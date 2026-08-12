@@ -129,6 +129,52 @@ public class LegacySeedImporter {
                 jdbc.update("insert into meta_dimension(code,name,dimension_type,status) values (?,?,?,?)", dimensions.get(name), name, "STANDARD", "ENABLED");
             }
         });
+        if (count("select count(*) from meta_data_source where code='official-demo-source'") == 0) {
+            jdbc.update("insert into meta_data_source(code,name,source_type,environment,endpoint,database_name,username,tls_enabled,read_only,max_rows,timeout_seconds,status) values ('official-demo-source','官方演示数据源','SQLITE','TEST','file:demo-warehouse','demo','readonly',false,true,1000,30,'ENABLED')");
+        }
+        var sourceId = id("select id from meta_data_source where code='official-demo-source'");
+        var tableName = baseline.at("/assets/table").asText();
+        if (count("select count(*) from meta_data_table where data_source_id=? and schema_name='main' and table_name=?", sourceId, tableName) == 0) {
+            jdbc.update("insert into meta_data_table(data_source_id,schema_name,table_name,display_name,table_type,query_priority,allowed,classification_level,status) values (?,'main',?,'贷款指标宽表','WIDE',100,true,'INTERNAL','ENABLED')", sourceId, tableName);
+        }
+        var tableId = id("select id from meta_data_table where data_source_id=? and schema_name='main' and table_name=?", sourceId, tableName);
+        var fieldRoles = Map.of("stat_dt","TIME","org_name","ORG","loan_cur","METRIC","loan_last","METRIC","retail_cur","METRIC","retail_last","METRIC","corporate_cur","METRIC","corporate_last","METRIC");
+        for (var entry : fieldRoles.entrySet()) {
+            if (count("select count(*) from meta_data_field where table_id=? and field_name=?", tableId, entry.getKey()) == 0) {
+                jdbc.update("insert into meta_data_field(table_id,field_name,display_name,data_type,nullable,field_role,classification_level,masking_required,status) values (?,?,?,?,false,?,'INTERNAL',false,'ENABLED')",
+                        tableId, entry.getKey(), entry.getKey(), entry.getKey().equals("stat_dt") ? "DATE" : entry.getKey().equals("org_name") ? "VARCHAR" : "DECIMAL", entry.getValue());
+            }
+        }
+        for (var entry : metrics.entrySet()) {
+            var metricId = id("select id from meta_metric where code=?", entry.getValue());
+            var currentField = id("select id from meta_data_field where table_id=? and field_name=?", tableId, entry.getValue());
+            var previousField = id("select id from meta_data_field where table_id=? and field_name=?", tableId, entry.getValue().replace("_cur", "_last"));
+            if (count("select count(*) from meta_metric_mapping where metric_id=? and table_id=?", metricId, tableId) == 0) {
+                jdbc.update("insert into meta_metric_mapping(metric_id,table_id,current_field_id,previous_field_id,priority,status) values (?,?,?,?,100,'ENABLED')", metricId, tableId, currentField, previousField);
+                jdbc.update("insert into meta_lineage_edge(source_type,source_id,target_type,target_id,relation_type,status) values ('FIELD',?,'METRIC',?,'CALCULATES','ENABLED')", currentField, metricId);
+            }
+        }
+        var dimensionFields = Map.of("org", "org_name", "stat_dt", "stat_dt");
+        for (var entry : dimensionFields.entrySet()) {
+            var dimensionId = id("select id from meta_dimension where code=?", entry.getKey());
+            var fieldId = id("select id from meta_data_field where table_id=? and field_name=?", tableId, entry.getValue());
+            if (count("select count(*) from meta_dimension_mapping where dimension_id=? and table_id=?", dimensionId, tableId) == 0) {
+                jdbc.update("insert into meta_dimension_mapping(dimension_id,table_id,field_id,status) values (?,?,?,'ENABLED')", dimensionId, tableId, fieldId);
+            }
+        }
+        baseline.at("/assets/synonyms").properties().forEach(entry -> {
+            if (count("select count(*) from meta_synonym where term=? and canonical_term=?", entry.getKey(), entry.getValue().asText()) == 0) {
+                jdbc.update("insert into meta_synonym(term,canonical_term,priority,status) values (?,?,100,'ENABLED')", entry.getKey(), entry.getValue().asText());
+            }
+        });
+        baseline.at("/assets/recommendations").properties().forEach(entry -> {
+            var roleId = id("select id from iam_role where code=?", entry.getKey());
+            for (var question : entry.getValue()) {
+                if (count("select count(*) from meta_recommendation where role_id=? and question_template=?", roleId, question.asText()) == 0) {
+                    jdbc.update("insert into meta_recommendation(role_id,keyword,question_template,priority,status) values (?,?,?,100,'ENABLED')", roleId, "贷款", question.asText());
+                }
+            }
+        });
         var sql = baseline.at("/assets/sql_template").asText();
         if (count("select count(*) from flow_sql_template where code='official-loan-query'") == 0) {
             jdbc.update("insert into flow_sql_template(code,name,template_type,sql_text,dialect,max_rows,timeout_seconds,checksum,status) values (?,?,?,?,?,?,?,?,?)",
