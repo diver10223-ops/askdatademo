@@ -1,5 +1,5 @@
 import asyncio,json,time
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from .db import connect
 from .config import PLATFORM_DB
 from .models import PipelineContext
@@ -57,7 +57,7 @@ class Engine:
   with connect(PLATFORM_DB) as db:
    db.execute('UPDATE requests SET status=?,last_layer=?,termination_reason=?,completed_at=? WHERE id=?',(c.status,layer.layer_code,c.termination_reason,now(),c.request_id))
    if c.results:
-    execution=c.runtime.section('execution'); fields=c.runtime.require('masking.fields'); masked=mask_results(c.results,fields); raw=json.dumps(masked,ensure_ascii=False); max_bytes=int(c.runtime.require('execution.max_snapshot_bytes')); max_rows=int(c.runtime.require('execution.max_snapshot_rows')); raw=raw if len(raw.encode())<=max_bytes else json.dumps(masked[:max_rows],ensure_ascii=False); db.execute('INSERT OR REPLACE INTO result_snapshots VALUES(?,?,?,?)',(c.request_id,raw,1,len(raw.encode())))
+    execution=c.runtime.section('execution'); fields=c.runtime.require('masking.fields'); masked=mask_results(c.results,fields); raw=json.dumps(masked,ensure_ascii=False); max_bytes=int(c.runtime.require('execution.max_snapshot_bytes')); max_rows=int(c.runtime.require('execution.max_snapshot_rows')); raw=raw if len(raw.encode())<=max_bytes else json.dumps(masked[:max_rows],ensure_ascii=False); classification=str(c.runtime.section('assets').get('classification_level','INTERNAL')).upper(); retention={'PUBLIC':90,'INTERNAL':30,'SENSITIVE':7,'SECRET':1,'RESTRICTED':1}.get(classification,7); expires=(datetime.now(timezone.utc)+timedelta(days=retention)).isoformat(); db.execute('INSERT OR REPLACE INTO result_snapshots(request_id,payload,masked,size_bytes,classification_level,expires_at) VALUES(?,?,?,?,?,?)',(c.request_id,raw,1,len(raw.encode()),classification,expires))
    completion_scenario=c.runtime.section('understanding').get('completion_scenario')
    if c.status=='SUCCEEDED' or (c.status=='WAITING_INPUT' and c.scenario_id==completion_scenario):
     db.execute('UPDATE sessions SET context=? WHERE id=?',(json.dumps(c.parameters,ensure_ascii=False),c.session_id))

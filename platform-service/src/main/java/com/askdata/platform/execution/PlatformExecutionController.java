@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v2/execution")
@@ -37,5 +38,10 @@ public class PlatformExecutionController {
         var traceId = request.getAttribute(TraceIdFilter.ATTRIBUTE).toString();
         var key = idempotencyKey == null || idempotencyKey.isBlank() ? UUID.randomUUID().toString() : idempotencyKey;
         return executionService.submit(command, traceId, key);
+    }
+
+    @GetMapping("/queries/{requestId}")
+    Map<String,Object> detail(@org.springframework.web.bind.annotation.PathVariable UUID requestId,HttpServletRequest request){
+        return executionService.detail(requestId,request.getAttribute(TraceIdFilter.ATTRIBUTE).toString());
     }
 }

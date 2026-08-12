@@ -42,6 +42,7 @@ askdata:
   execution:
     base-url: ${ASKDATA_EXECUTION_BASE_URL:http://127.0.0.1:8000}
     service-token: ${ASKDATA_INTERNAL_SERVICE_TOKEN:askdata-local-service-token}
+    reconcile-delay-ms: ${ASKDATA_EXECUTION_RECONCILE_DELAY_MS:1000}
 
 logging:
   pattern:

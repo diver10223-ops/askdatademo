@@ -344,7 +344,7 @@ M5退出条件：Java/Python企业链路矩阵通过；原一期/二期33轮矩�
 
 ### P360 会话、请求和事件持久化
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 实现Session、Request、层执行、SQL/Provider执行、结果快照和SSE事件；大表按时间分区或归档；结果按数据等级过期。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | M5已关闭，下一步P360运行事实持久化 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P360已通过，下一步P361队列、并发和超载 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5已完成，下一步执行P360。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360已完成，下一步执行P361。
 
 ## 11. 执行记录模板
 
@@ -854,12 +854,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 客户真实模型、数据源和网络异常注入仍属于M8；运行事实跨服务归一化、归档、队列超载、指标告警和压测在M6继续完成 |
 | 批准 | M5完成，可进入M6运行态、队列、可观测与可靠性 |
 
+### P360执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P360 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | 全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`python scripts/check-contract-compatibility.py`；Java专项`./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=RuntimeFactPersistenceTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V12新增层、SQL、模型/数据源Provider、SSE、结果快照、保留策略和统一归档表；Java查询入口和每秒对账器从Python执行状态幂等同步全部事实，`run_request.synced_at`记录同步；Python结果快照新增PUBLIC/INTERNAL/SENSITIVE/SECRET/RESTRICTED等级及90/30/7/1/1天过期；专项验证重复同步不重复、敏感结果过期、30天事件清理及180天层/SQL/Provider/Request归档；Python 57 tests、契约兼容和Java 23 tests通过 |
+| 结论 | Session/Request由Java控制面创建，Python执行事实以版本化内部响应回流平台库；用户查询或后台对账均可触发同步，不依赖单机内存；高增长事实具有索引、在线保留和可审计归档路径，结果按数据等级到期删除 |
+| 遗留问题 | 当前产品基线使用数据库归档而非客户数据库原生月分区；对象存储快照、目标数据库分区DDL和归档介质在M8按客户环境确定；SSE共享读取与重连在P362完成 |
+| 批准 | 满足P360退出条件，可进入P361队列、并发和超载 |
+
 ## 12. 下一步
 
 M0—M5已经完成，M6执行中。当前执行链为：
 
 ~~~text
-P360 会话、请求和事件持久化
+P361 队列、并发和超载
   ↓
 M6 用户端和管理端闭环
   ↓

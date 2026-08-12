@@ -14,8 +14,9 @@ import java.util.UUID;
 public class PlatformExecutionService {
     private final JdbcTemplate jdbc;
     private final ExecutionClient client;
+    private final RuntimeFactPersistenceService facts;
     private final ObjectMapper mapper=new ObjectMapper();
-    public PlatformExecutionService(JdbcTemplate jdbc,ExecutionClient client){this.jdbc=jdbc;this.client=client;}
+    public PlatformExecutionService(JdbcTemplate jdbc,ExecutionClient client,RuntimeFactPersistenceService facts){this.jdbc=jdbc;this.client=client;this.facts=facts;}
 
     @Transactional
     public ExecutionAccepted submit(QueryCommand query,String traceId,String idempotencyKey){
@@ -35,6 +36,8 @@ public class PlatformExecutionService {
             return client.submit(command,traceId,idempotencyKey);
         }catch(RuntimeException exception){jdbc.update("update run_request set status='FAILED',termination_reason='EXECUTION_PLANE_UNAVAILABLE',completed_at=current_timestamp where public_id=?",requestId.toString());throw exception;}
     }
+
+    public Map<String,Object> detail(UUID requestId,String traceId){return facts.synchronize(requestId,client.state(requestId,traceId));}
 
     private <T>T read(String json,TypeReference<T> type){try{return mapper.readValue(json,type);}catch(Exception exception){throw new IllegalStateException("Session或配置快照无效",exception);}}
     public record QueryCommand(String sessionId,String parentRequestId,String question,String scenarioId,int timeoutMs){public QueryCommand{if(question==null||question.isBlank())throw new IllegalArgumentException("问题不能为空");if(timeoutMs<1000||timeoutMs>300000)throw new IllegalArgumentException("超时必须在1000到300000毫秒之间");}}

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS layer_executions(id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE TABLE IF NOT EXISTS sse_events(request_id TEXT NOT NULL REFERENCES requests(id),event_id INTEGER NOT NULL,event_type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(request_id,event_id));
 CREATE INDEX IF NOT EXISTS idx_event_seq ON sse_events(request_id,event_id);
 CREATE TABLE IF NOT EXISTS sql_executions(id INTEGER PRIMARY KEY AUTOINCREMENT,request_id TEXT NOT NULL REFERENCES requests(id),sequence INTEGER NOT NULL,business_sql TEXT NOT NULL,actual_sql TEXT NOT NULL,parameters TEXT NOT NULL,source TEXT NOT NULL,status TEXT NOT NULL,row_count INTEGER,elapsed_ms REAL,error TEXT,fallback INTEGER NOT NULL DEFAULT 0,UNIQUE(request_id,sequence));
-CREATE TABLE IF NOT EXISTS result_snapshots(request_id TEXT PRIMARY KEY REFERENCES requests(id),payload TEXT NOT NULL,masked INTEGER NOT NULL,size_bytes INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS result_snapshots(request_id TEXT PRIMARY KEY REFERENCES requests(id),payload TEXT NOT NULL,masked INTEGER NOT NULL,size_bytes INTEGER NOT NULL,classification_level TEXT NOT NULL DEFAULT 'INTERNAL',expires_at TEXT);
 CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,actor TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS approval_tasks(id TEXT PRIMARY KEY,type TEXT NOT NULL,title TEXT NOT NULL,applicant_id TEXT NOT NULL,applicant_name TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('PENDING','APPROVED','REJECTED')),submitted_at TEXT NOT NULL,target_type TEXT,target_id TEXT);
 CREATE TABLE IF NOT EXISTS provider_configs(id TEXT PRIMARY KEY,type TEXT NOT NULL,status TEXT NOT NULL,config TEXT NOT NULL);
@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS phase2_session_profiles(session_id TEXT PRIMARY KEY R
 CREATE TABLE IF NOT EXISTS session_execution_modes(session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,execution_mode TEXT NOT NULL CHECK(execution_mode IN ('PHASE1_DEMO','PHASE2_DEMO','PHASE2_POC')));
 CREATE TABLE IF NOT EXISTS provider_diagnostics(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL,component TEXT NOT NULL,status TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
 ''')
+  columns={row['name'] for row in c.execute('PRAGMA table_info(result_snapshots)')}
+  if 'classification_level' not in columns: c.execute("ALTER TABLE result_snapshots ADD COLUMN classification_level TEXT NOT NULL DEFAULT 'INTERNAL'")
+  if 'expires_at' not in columns: c.execute('ALTER TABLE result_snapshots ADD COLUMN expires_at TEXT')
   defaults=json.loads((BASELINE.parent/'demo_runtime_defaults.json').read_text())
   for row in c.execute('SELECT id,payload FROM config_versions').fetchall():
    payload=json.loads(row['payload'])

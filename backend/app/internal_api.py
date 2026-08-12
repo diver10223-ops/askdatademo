@@ -191,12 +191,16 @@ def _state_from_database(request_id: str, trace_id: str | None = None) -> dict[s
             raise KeyError(request_id)
         layers = [{**dict(row), "input": json.loads(row["input_json"]), "output": json.loads(row["output_json"] or "{}")} for row in db.execute("SELECT * FROM layer_executions WHERE request_id=? ORDER BY id", (request_id,))]
         sql = [{**dict(row), "parameters": json.loads(row["parameters"])} for row in db.execute("SELECT * FROM sql_executions WHERE request_id=? ORDER BY sequence", (request_id,))]
-        snapshot = db.execute("SELECT payload,masked,size_bytes FROM result_snapshots WHERE request_id=?", (request_id,)).fetchone()
+        snapshot = db.execute("SELECT payload,masked,size_bytes,classification_level,expires_at FROM result_snapshots WHERE request_id=?", (request_id,)).fetchone()
         last_event = db.execute("SELECT COALESCE(MAX(event_id),0) FROM sse_events WHERE request_id=?", (request_id,)).fetchone()[0]
+        events = [{**dict(row), "payload": json.loads(row["payload"])} for row in db.execute("SELECT request_id,event_id,event_type,payload,created_at FROM sse_events WHERE request_id=? ORDER BY event_id", (request_id,))]
     return {"requestId": request_id, "status": request["status"], "traceId": request["trace_id"] if request else trace_id,
             "lastEventId": last_event, "lastLayer": request["last_layer"], "terminationReason": request["termination_reason"],
             "result": {"layers": layers, "sqlExecutions": sql, "resultSnapshot": json.loads(snapshot["payload"]) if snapshot else [],
-                       "masked": bool(snapshot["masked"]) if snapshot else True}}
+                       "masked": bool(snapshot["masked"]) if snapshot else True,
+                       "resultClassification": snapshot["classification_level"] if snapshot else None,
+                       "resultExpiresAt": snapshot["expires_at"] if snapshot else None,
+                       "events": events}}
 
 
 @router.get("/executions/{request_id}")

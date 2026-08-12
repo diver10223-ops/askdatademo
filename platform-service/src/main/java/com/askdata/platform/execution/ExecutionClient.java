@@ -3,7 +3,11 @@ package com.askdata.platform.execution;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
+
+import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class ExecutionClient {
@@ -31,5 +35,11 @@ public class ExecutionClient {
                 .header("X-Trace-Id", traceId)
                 .header("Idempotency-Key", idempotencyKey)
                 .body(command).retrieve().body(ExecutionAccepted.class);
+    }
+
+    public Map<String,Object> state(UUID requestId,String traceId) {
+        return client.get().uri("/internal/v1/executions/{id}",requestId)
+                .header("X-Service-Token",serviceToken).header("X-Trace-Id",traceId)
+                .retrieve().body(new ParameterizedTypeReference<>(){});
     }
 }
