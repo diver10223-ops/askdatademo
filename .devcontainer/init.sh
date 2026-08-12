@@ -4,3 +4,5 @@ python -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt
 npm --prefix frontend ci
 bash scripts/init-db.sh
+cd platform-service
+./mvnw -q -DskipTests package

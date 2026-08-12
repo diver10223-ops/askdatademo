@@ -3,7 +3,7 @@
 > 文件：`PRODUCT_V2_EXECUTION_PLAN.md`  
 > 版本：V1.0  
 > 日期：2026-08-12  
-> 状态：待启动  
+> 状态：执行中（M1）
 > 目标分支：`release/product-v2-test`  
 > 稳定基线分支：`release/v1-v2-test`
 
@@ -194,7 +194,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P311 建立Spring Boot工程骨架
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 建立模块、配置加载、健康检查、结构化日志、统一错误体、测试框架和数据库迁移框架。不得写死客户数据库、认证、域名和凭据。
 
@@ -497,15 +497,15 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 
 | 顺序 | 任务 | 当前状态 | 下一动作 |
 |---:|---|---|---|
-| 1 | P300 场景7修复 | NOT STARTED | 修正首轮默认参数策略并加专项测试 |
-| 2 | P301 一二期门禁 | NOT STARTED | 重跑完整仓库内验收 |
+| 1 | P300 场景7修复 | PASS | 稳定标签已固化专项测试证据 |
+| 2 | P301 一二期门禁 | PASS | 稳定标签已固化全量仓库门禁证据 |
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | 下一步P311建立Spring Boot骨架 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P311已通过，下一步P312固化内部契约 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；下一步从P310开始。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
 
 ## 11. 执行记录模板
 
@@ -588,13 +588,25 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | P312冻结具体OpenAPI/事件Schema；客户认证和数据库产品在M8适配 |
 | 批准 | 作为P311、P312实施基线 |
 
+### P311执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P311 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q clean verify`；`git diff --check` |
+| 证据 | Surefire报告`platform-service/target/surefire-reports/TEST-com.askdata.platform.PlatformServiceApplicationTests.xml`：2 tests、0 failures、0 errors；测试启动随机端口并验证`/api/v2/health`；Flyway从空库执行V1迁移 |
+| 结论 | 建立Java 21、Spring Boot 4.1、Maven Wrapper、配置加载、Actuator、统一错误体、Trace、结构化日志、Flyway、H2开发基线与PostgreSQL驱动；客户数据库、域名和凭据均由环境注入 |
+| 遗留问题 | 当前交互Shell尚未加载Dev Container Java Feature，仓库测试已用隔离Temurin JDK 21通过；容器再次重建后复核全局`java -version` |
+| 批准 | 满足P311退出条件，作为P312契约实施基线 |
+
 ## 12. 下一步
 
 M0已经完成。当前执行链为：
 
 ~~~text
-P311 建立Spring Boot工程骨架
-  ↓
 P312 固化Java/Python内部契约
   ↓
 P313 建立兼容入口

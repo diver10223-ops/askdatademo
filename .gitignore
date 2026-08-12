@@ -5,6 +5,8 @@ node_modules/
 frontend/dist/
 data/*.db
 data/*.db-*
+data/*.mv.db
+data/*.trace.db
 data/.credential-key
 data/clickhouse/
 data/clickhouse-server.log
