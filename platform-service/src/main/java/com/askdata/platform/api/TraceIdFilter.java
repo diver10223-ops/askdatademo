@@ -20,7 +20,8 @@ public class TraceIdFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         var incoming = request.getHeader(HEADER);
-        var traceId = incoming == null || incoming.isBlank() ? UUID.randomUUID().toString() : incoming;
+        var traceId = incoming != null && incoming.matches("[A-Za-z0-9._:-]{1,128}")
+                ? incoming : UUID.randomUUID().toString();
         MDC.put("traceId", traceId);
         request.setAttribute(ATTRIBUTE, traceId);
         response.setHeader(HEADER, traceId);

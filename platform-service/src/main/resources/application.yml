@@ -20,6 +20,14 @@ server:
   shutdown: graceful
 
 management:
+  defaults:
+    metrics:
+      export:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoints:
     web:
       exposure:
@@ -29,6 +37,13 @@ management:
       probes:
         enabled: true
       show-details: never
+    metrics:
+      access: unrestricted
+    prometheus:
+      access: unrestricted
+  metrics:
+    tags:
+      application: askdata-platform
 
 info:
   app:
@@ -47,6 +62,9 @@ askdata:
     per-user-concurrency: ${ASKDATA_EXECUTION_PER_USER_CONCURRENCY:2}
     queue-capacity: ${ASKDATA_EXECUTION_QUEUE_CAPACITY:50}
     max-queue-wait-ms: ${ASKDATA_EXECUTION_MAX_QUEUE_WAIT_MS:5000}
+  observability:
+    alert-adapter: ${ASKDATA_ALERT_ADAPTER:logging}
+    alert-evaluation-delay-ms: ${ASKDATA_ALERT_EVALUATION_DELAY_MS:30000}
 
 logging:
   pattern:

@@ -362,7 +362,7 @@ M5退出条件：Java/Python企业链路矩阵通过；原一期/二期33轮矩�
 
 ### P363 可观测与告警
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 建立请求、模型、SQL、队列和发布Trace；指标与日志不得泄露凭据或未脱敏业务数据；告警渠道通过适配器配置。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P362已通过，下一步P363可观测与告警 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P363已通过，下一步P364备份、恢复与灾难演练 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360—P362已完成，下一步执行P363。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360—P363已完成，下一步执行P364。
 
 ## 11. 执行记录模板
 
@@ -896,12 +896,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 产品基线事件轮询间隔、心跳和重连退避为默认值；多实例SSE连接容量、数据库轮询压力和最终参数在P372验证，客户网关超时及代理缓冲配置在M8适配 |
 | 批准 | 满足P362退出条件，可进入P363可观测与告警 |
 
+### P363执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P363 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | Java专项`./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=ObservabilityAlertTests,PlatformServiceApplicationTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test`；全新`ASKDATA_DATA_DIR`执行`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`python scripts/check-contract-compatibility.py` |
+| 证据 | Prometheus实际HTTP抓取包含执行状态、准入活动/等待、模型/数据源Provider、SQL、发布和告警发送失败指标，标签仅使用固定状态/Provider类别；管理摘要只返回聚合数量与平均耗时；Request Trace通过外键关联层/SQL/Provider，发布Trace进入防篡改审计链；Flyway V15持久化五类告警规则、最小样本、严重级别、冷却去重、渠道和发送结果；专项验证配置适配器收到安全通知且冷却期不重复；非法Trace被UUID替换，通用异常日志不输出可能含SQL/地址/凭据的消息或堆栈；Java 31 tests、Python 57 tests及冻结契约兼容检查通过 |
+| 结论 | 请求、模型、数据源、SQL、队列、发布和告警均具有可关联的运维事实；Prometheus与管理摘要不暴露问题、业务SQL、Provider名称/消息、结果或秘密；告警发送失败不影响在线执行并可从平台库追踪 |
+| 遗留问题 | 产品默认使用安全日志告警适配器及基线阈值；客户监控平台、短信/邮件/Webhook、管理网络、采集认证、SLA、保留期和值班升级路径在M8确认；容量相关阈值在P372定标，不冒充客户生产结论 |
+| 批准 | 满足P363退出条件，可进入P364备份、恢复与灾难演练 |
+
 ## 12. 下一步
 
 M0—M5已经完成，M6执行中。当前执行链为：
 
 ~~~text
-P363 可观测与告警
+P364 备份、恢复与灾难演练
   ↓
 M6 用户端和管理端闭环
   ↓

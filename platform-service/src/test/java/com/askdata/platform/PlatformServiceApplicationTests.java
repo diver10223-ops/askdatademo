@@ -23,4 +23,14 @@ class PlatformServiceApplicationTests {
 		assertThat(body).contains("\"status\":\"ok\"").contains("2.0.0-SNAPSHOT");
 	}
 
+	@Test
+	void rejectsLogInjectionInIncomingTraceId() {
+		var response = RestClient.create("http://127.0.0.1:" + port).get().uri("/api/v2/health")
+				.header("X-Trace-Id", "unsafe trace\"injection")
+				.retrieve().toBodilessEntity();
+		assertThat(response.getHeaders().getFirst("X-Trace-Id"))
+				.matches("[0-9a-f-]{36}")
+				.doesNotContain("unsafe", " ", "\"");
+	}
+
 }

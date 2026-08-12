@@ -40,7 +40,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception exception, HttpServletRequest request) {
-        log.error("Unhandled API exception", exception);
+        // Exception messages and stack traces can contain SQL, provider URLs or driver values.
+        // The client and operators correlate the safe exception type with the Trace ID instead.
+        log.error("Unhandled API exception type={} traceId={}", exception.getClass().getSimpleName(), MDC.get("traceId"));
         return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务执行失败，请使用Trace ID联系管理员");
     }
 
