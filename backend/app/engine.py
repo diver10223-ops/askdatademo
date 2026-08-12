@@ -58,5 +58,7 @@ class Engine:
    db.execute('UPDATE requests SET status=?,last_layer=?,termination_reason=?,completed_at=? WHERE id=?',(c.status,layer.layer_code,c.termination_reason,now(),c.request_id))
    if c.results:
     execution=c.runtime.section('execution'); fields=c.runtime.require('masking.fields'); masked=mask_results(c.results,fields); raw=json.dumps(masked,ensure_ascii=False); max_bytes=int(c.runtime.require('execution.max_snapshot_bytes')); max_rows=int(c.runtime.require('execution.max_snapshot_rows')); raw=raw if len(raw.encode())<=max_bytes else json.dumps(masked[:max_rows],ensure_ascii=False); db.execute('INSERT OR REPLACE INTO result_snapshots VALUES(?,?,?,?)',(c.request_id,raw,1,len(raw.encode())))
-   if c.status=='SUCCEEDED': db.execute('UPDATE sessions SET context=? WHERE id=?',(json.dumps(c.parameters,ensure_ascii=False),c.session_id))
+   completion_scenario=c.runtime.section('understanding').get('completion_scenario')
+   if c.status=='SUCCEEDED' or (c.status=='WAITING_INPUT' and c.scenario_id==completion_scenario):
+    db.execute('UPDATE sessions SET context=? WHERE id=?',(json.dumps(c.parameters,ensure_ascii=False),c.session_id))
   self.event(c,'request.completed',{'status':c.status,'last_layer':layer.layer_code,'answer':c.answer})

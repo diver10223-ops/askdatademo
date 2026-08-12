@@ -1,0 +1,63 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>用户安装部署手册</title><style>
+@page{size:A4;margin:18mm 16mm 18mm 18mm;@top-left{content:"NLQ智能银行问数平台 · 第二阶段交付文档";color:#64748b;font-size:8.5pt}@bottom-center{content:"第 " counter(page) " 页 / 共 " counter(pages) " 页";color:#64748b;font-size:8.5pt}}
+@page cover{@top-left{content:none}@bottom-center{content:none}}
+*{box-sizing:border-box}body{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;color:#1f2937;font-size:10pt;line-height:1.62}
+.cover{page:cover;page-break-after:always;min-height:250mm;padding:42mm 16mm 15mm;background:linear-gradient(145deg,#eff6ff,#fff 55%,#e0f2fe);border-top:8mm solid #2563eb}
+.cover .kicker{color:#2563eb;letter-spacing:2px;font-weight:700}.cover h1{font-size:29pt;line-height:1.25;color:#0f172a;margin:22mm 0 5mm}.cover h2{font-size:15pt;font-weight:400;color:#475569;border:0}.cover .meta{margin-top:45mm;border-left:4px solid #2563eb;padding-left:8mm}
+h1{font-size:22pt;color:#0f172a;page-break-before:always;margin:0 0 8mm}h1:first-of-type{page-break-before:auto}h2{font-size:15pt;color:#1d4ed8;border-bottom:1px solid #bfdbfe;padding-bottom:2mm;margin:8mm 0 3mm}h3{font-size:12pt;color:#0f172a;margin:5mm 0 2mm}
+p{margin:1.5mm 0 3mm}ul,ol{margin:2mm 0 4mm 6mm;padding-left:5mm}li{margin:1mm 0}table{border-collapse:collapse;width:100%;margin:3mm 0 6mm;font-size:8.5pt}thead{display:table-header-group}tr{page-break-inside:avoid}th{background:#dbeafe;color:#1e3a8a}th,td{border:.35mm solid #cbd5e1;padding:1.7mm 2mm;vertical-align:top;overflow-wrap:anywhere}
+code,pre{font-family:"DejaVu Sans Mono",monospace;background:#f1f5f9}code{padding:.2mm 1mm;color:#9f1239}pre{white-space:pre-wrap;padding:3mm;border-left:1mm solid #3b82f6;font-size:8pt;line-height:1.45}.toc a{color:#1e40af;text-decoration:none}.note,.warn,.ok{padding:3mm 4mm;margin:4mm 0;border-left:1.2mm solid;background:#f8fafc}.note{border-color:#2563eb}.warn{border-color:#f59e0b;background:#fffbeb}.ok{border-color:#10b981;background:#ecfdf5}
+.figure{margin:5mm 0 7mm;page-break-inside:avoid;text-align:center}.figure img{width:100%;max-height:165mm;object-fit:contain;border:.35mm solid #cbd5e1}.caption{color:#64748b;font-size:8.5pt;margin-top:1.5mm}.small{font-size:8.5pt;color:#64748b}.approval td{height:13mm}.pass{color:#047857;font-weight:700}.fail{color:#b91c1c;font-weight:700}
+</style></head><body><section class="cover"><div class="kicker">PHASE 2 · DELIVERY DOCUMENT</div><h1>用户安装部署手册</h1><h2>Linux · 单机与多服务器 · 非Docker部署</h2><div class="meta"><p><b>项目：</b>NLQ智能银行问数平台</p><p><b>版本：</b>V1.0</p><p><b>状态：</b>交付草案</p><p><b>发布日期：</b>2026-08-12</p><p><b>文档信息：</b>中性信息模板</p></div></section><h1>文档控制</h1><table><tr><th>版本</th><th>日期</th><th>变更说明</th><th>编制</th></tr><tr><td>V1.0</td><td>2026-08-12</td><td>第二阶段首次成册</td><td>项目交付组</td></tr></table><div class="note"><b>依据：</b>当前源码、配置、实际POC页面及Debian 12隔离安装演练。客户真实模型、数据库和生产服务器须在目标环境复验。</div><h2>目录</h2><ol class="toc"><li><a href="#overview">1. 范围与架构</a></li><li><a href="#prereq">2. 环境准备</a></li><li><a href="#single">3. 单机部署</a></li><li><a href="#multi">4. 多服务器部署</a></li><li><a href="#providers">5. Provider配置</a></li><li><a href="#service">6. 服务托管</a></li><li><a href="#verify">7. 实际验证</a></li><li><a href="#maintain">8. 运维升级回滚</a></li><li><a href="#approval">9. 审批与验收</a></li></ol>
+<h1 id="overview">1. 范围与架构</h1><p>无Docker、无反向代理、无域名、无HTTPS。FastAPI同源提供Vue静态文件与API；平台和演示数据默认SQLite，二期连接ClickHouse或MySQL。</p><table><tr><th>方案</th><th>节点</th><th>适用</th></tr><tr><td>单机</td><td>应用、静态文件、SQLite同机</td><td>POC/演示</td></tr><tr><td>多服务器</td><td>应用 + 独立数据库 + 外部模型</td><td>网络/资源隔离</td></tr></table><div class="warn">无HTTPS时流量明文，仅限受控内网并限制来源，禁止直接暴露互联网。</div>
+<h1 id="prereq">2. 环境准备</h1><table><tr><th>项目</th><th>建议</th><th>实测</th></tr><tr><td>Linux</td><td>Debian/Ubuntu或RHEL系列64位</td><td>Debian 12</td></tr><tr><td>资源</td><td>4核/8GB/20GB可用</td><td>目标环境复核</td></tr><tr><td>Python</td><td>3.11+</td><td>3.12.11</td></tr><tr><td>Node/npm</td><td>20+/10+</td><td>22.23.2/10.9.8</td></tr><tr><td>端口</td><td>8000及Provider端口</td><td>演练18080</td></tr></table>
+<h2>2.1 Ubuntu/Debian</h2><pre>sudo apt update
+sudo apt install -y python3 python3-venv python3-pip nodejs npm curl git</pre><h2>2.2 RHEL/CentOS/Rocky/Alma</h2><pre>sudo dnf install -y python3 python3-pip nodejs npm curl git
+# Node过低时使用组织批准的软件源安装Node 20+</pre>
+<h2>2.3 网络</h2><pre>ss -lntp | grep ':8000' || true
+curl -I --max-time 5 MODEL_BASE_URL
+curl -I --max-time 5 CLICKHOUSE_HTTP_URL
+nc -vz MYSQL_HOST 3306</pre><p>应用需访问模型、ClickHouse HTTP（常见8123/8443）或MySQL 3306；数据库仅向应用IP开放。</p>
+<h1 id="single">3. 单机部署（实际顺序）</h1><ol><li>创建低权限用户和目录。</li><li>上传并核对摘要。</li><li>创建venv、安装后端依赖。</li><li>安装前端依赖并构建。</li><li>生成并保管凭证加密密钥。</li><li>初始化SQLite。</li><li>前台启动并健康检查。</li><li>配置systemd。</li><li>后台配置模型、数据源、组合。</li><li>诊断、冒烟、自动测试和矩阵。</li></ol><pre>sudo useradd --system --create-home --shell /usr/sbin/nologin askdata
+sudo mkdir -p /opt/askdata /var/lib/askdata /var/log/askdata /etc/askdata
+sudo chown -R askdata:askdata /opt/askdata /var/lib/askdata /var/log/askdata
+cd /opt/askdata
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
+npm --prefix frontend ci
+bash scripts/init-db.sh
+npm --prefix frontend run build
+umask 077
+.venv/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" | sudo tee /etc/askdata/credential-key >/dev/null
+sudo chmod 600 /etc/askdata/credential-key</pre><div class="note">不得在历史、截图、工单或PDF记录真实API Key、密码或ASKDATA_CREDENTIAL_KEY。密钥丢失会使已加密Provider凭据不可用。</div>
+<h1 id="multi">4. 多服务器部署</h1><table><tr><th>节点</th><th>内容</th><th>入站</th><th>出站</th></tr><tr><td>应用</td><td>Python、Vue、平台SQLite</td><td>客户端→8000</td><td>模型/数据库</td></tr><tr><td>ClickHouse</td><td>宽表/明细、只读账号</td><td>应用IP→HTTP</td><td>按策略</td></tr><tr><td>MySQL</td><td>业务库、只读账号</td><td>应用IP→3306</td><td>按策略</td></tr><tr><td>模型</td><td>OpenAI-compatible</td><td>应用IP→服务端口</td><td>按供应商</td></tr></table><p>当前不建议多应用实例共享本地SQLite。高可用须先完成平台库外置、共享Session/事件、负载均衡和一致性改造。</p>
+<h1 id="providers">5. Provider配置</h1><h2>5.1 ClickHouse</h2><p>使用HTTP地址、库、账号密码；只授予允许表SELECT。配置allowed_tables、最大行数、时间范围、超时、重试和并发，执行DNS/TCP/TLS/鉴权/最小查询诊断。</p><pre>CREATE USER askdata_ro IDENTIFIED WITH sha256_password BY '由密码库生成';
+GRANT SELECT ON askdata_poc.dws_loan_aggr_wide TO askdata_ro;</pre><h2>5.2 MySQL</h2><pre>CREATE USER 'askdata_ro'@'APP_SERVER_IP' IDENTIFIED BY '由密码库生成';
+GRANT SELECT ON business_db.allowed_table TO 'askdata_ro'@'APP_SERVER_IP';
+FLUSH PRIVILEGES;</pre><p>字符集utf8mb4；禁止FILE、SUPER、CREATE、ALTER、DROP、INSERT、UPDATE、DELETE。</p><h2>5.3 模型</h2><p>配置OpenAI-compatible Base URL、模型、API Key、结构化输出、温度、Top P、Token、上下文、超时、重试和并发。诊断成功不替代完整场景验收。</p>
+<h1 id="service">6. systemd服务托管</h1><pre>[Unit]
+Description=NLQ AskData Service
+After=network-online.target
+[Service]
+Type=simple
+User=askdata
+Group=askdata
+WorkingDirectory=/opt/askdata
+EnvironmentFile=/etc/askdata/askdata.env
+ExecStart=/opt/askdata/.venv/bin/python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target</pre><p>环境文件写入ASKDATA_CREDENTIAL_KEY并设600权限。</p><pre>sudo systemctl daemon-reload
+sudo systemctl enable --now askdata
+sudo systemctl status askdata
+journalctl -u askdata -n 200 --no-pager
+curl -fsS http://127.0.0.1:8000/api/v1/health</pre>
+<h1 id="verify">7. 实际安装演练</h1><p>日期：2026-08-12；隔离副本；Debian 12；端口18080；未使用客户真实凭据。</p><table><tr><th>步骤</th><th>结果</th><th>证据</th></tr><tr><td>venv/后端依赖</td><td class="pass">通过</td><td>requirements完成</td></tr><tr><td>npm ci/Vue build</td><td class="pass">通过</td><td>31 modules，dist生成</td></tr><tr><td>数据库初始化</td><td class="pass">通过</td><td>platform.db、mock_warehouse.db</td></tr><tr><td>健康/诊断</td><td class="pass">通过</td><td>status=ok；Schema/Fixture/双库OK</td></tr><tr><td>后端测试</td><td class="pass">通过</td><td>29 passed；2个on_event弃用警告</td></tr><tr><td>一期readiness</td><td class="pass">通过</td><td>3角色×8场景×33轮；场景7首轮WAITING_INPUT/L2、补全轮SUCCEEDED/L7</td></tr><tr><td>二期仓库内检查</td><td class="pass">通过</td><td>7项协议/安全测试及Provider仿真33轮；一期回归通过</td></tr><tr><td>真实Provider</td><td>待目标环境</td><td>不伪造</td></tr></table><div class="warn">仓库内自动检查及协议仿真已通过；客户真实模型、ClickHouse/MySQL仍须在目标环境执行真连、真实33轮、对账、安全和恢复。</div>
+<h1 id="maintain">8. 运维、升级与回滚</h1><h2>8.1 日常</h2><pre>sudo systemctl restart askdata
+sudo systemctl stop askdata
+curl -fsS http://127.0.0.1:8000/api/v1/health
+bash scripts/diagnose.sh</pre><h2>8.2 备份</h2><p>备份发布版本、data、后台导出、credential-key和环境文件；密钥与数据库分权、加密并测试恢复。</p><h2>8.3 升级</h2><ol><li>冻结并备份。</li><li>新目录解压、核对SHA256。</li><li>装依赖、构建和测试。</li><li>停止旧服务，迁移经批准的数据和密钥。</li><li>切换目录、启动和验证。</li></ol><h2>8.4 回滚</h2><p>停止新版本，恢复旧目录、数据库和匹配的加密密钥；检查健康、配置版本和黄金问题。禁止只回滚数据库不匹配密钥。</p>
+<h1 id="approval">审批与验收</h1><table class="approval"><tr><th>环节</th><th>姓名/部门</th><th>意见</th><th>签字</th><th>日期</th></tr><tr><td>编制</td><td></td><td></td><td></td><td></td></tr><tr><td>审核</td><td></td><td></td><td></td><td></td></tr><tr><td>批准</td><td></td><td></td><td></td><td></td></tr><tr><td>交付验收</td><td></td><td></td><td></td><td></td></tr></table></body></html>

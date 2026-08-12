@@ -24,7 +24,10 @@ class WireMock(BaseHTTPRequestHandler):
 def main():
  restore_baseline(); server=ThreadingHTTPServer(('127.0.0.1',0),WireMock); Thread(target=server.serve_forever,daemon=True).start(); base=f'http://127.0.0.1:{server.server_port}'
  retry=RetryPolicy(2,0); registry=Phase2ProviderRegistry(OpenAICompatibleProvider(base,'test','model',retry),ClickHouseProvider(base,'u','p','default',SQLPolicy(frozenset({'dws_loan_aggr_wide'})),retry),'wire-profile'); engine=Engine(registry)
- baseline=json.loads((Path(__file__).parents[1]/'fixtures/official_baseline_v1.json').read_text()); checked=0
+ root=Path(__file__).parents[1]
+ baseline=json.loads((root/'fixtures/official_baseline_v1.json').read_text())
+ baseline['runtime']=json.loads((root/'fixtures/demo_runtime_defaults.json').read_text())
+ checked=0
  try:
   for scenario in baseline['scenarios']:
    for case in scenario['cases']:

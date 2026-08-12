@@ -28,11 +28,13 @@ class UnderstandingLayer:
    c.parameters=inherited
    return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','model_output':model_output,'deterministic':not bool(model_output)})
   completion=rules.get('completion_scenario')
-  if c.scenario_id==completion and c.parent_request_id and 'metric' not in inherited and runtime.policy.allow_parameter_defaults: inherited['metric']=rules.get('default_metric_by_role',{}).get(role)
-  if runtime.policy.allow_parameter_defaults:
+  is_completion=c.scenario_id==completion
+  if is_completion and c.parent_request_id and 'metric' not in inherited and runtime.policy.allow_parameter_defaults: inherited['metric']=rules.get('default_metric_by_role',{}).get(role)
+  if runtime.policy.allow_parameter_defaults and not is_completion:
    inherited.setdefault('org',rules.get('default_org_by_role',{}).get(role)); inherited.setdefault('date',rules.get('default_date')); inherited.setdefault('metric',rules.get('default_metric_by_role',{}).get(role))
   inherited={k:v for k,v in inherited.items() if v is not None}
   if not all(k in inherited for k in ('org','date','metric')):
+   c.parameters=inherited
    return LayerResult('WAITING_INPUT',{'message':rules.get('missing_message','请补充机构、时间和指标'),'options':rules.get('missing_options',[])},True,'MISSING_PARAMETER')
   c.parameters=inherited
   return LayerResult(output={'parameters':inherited,'provider':'OPENAI_COMPATIBLE' if model_output else 'MOCK','model_output':model_output,'deterministic':not bool(model_output)})

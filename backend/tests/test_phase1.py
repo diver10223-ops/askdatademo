@@ -1,5 +1,6 @@
-import asyncio,json,os,tempfile
+import asyncio,json,os,tempfile,uuid
 from pathlib import Path
+import pytest
 os.environ['ASKDATA_DATA_DIR']=tempfile.mkdtemp()
 from app.db import restore_baseline,connect
 from app.config import PLATFORM_DB,WAREHOUSE_DB
@@ -53,3 +54,57 @@ def test_phase1_session_keeps_phase1_demo_mode():
   with client.stream('GET',f"/api/v1/queries/{query['request_id']}/events") as response: ''.join(response.iter_text())
   detail=client.get(f"/api/v1/queries/{query['request_id']}").json()
   assert detail['request']['mode']=='PHASE1_DEMO'
+
+
+@pytest.mark.parametrize(
+ ('role','case_id','first_question','completion_question'),
+ [
+  ('admin','s7-admin','查询贷款投放同比数据','2026年3月，全行'),
+  ('beijing','s7-beijing','查询贷款投放同比数据','2026年3月，北京分行'),
+  ('retail','s7-retail','查询零售贷款同比数据','2026年3月，全行'),
+ ],
+)
+def test_scenario7_waits_then_executes_for_each_role(role,case_id,first_question,completion_question):
+ baseline=json.loads((Path(__file__).parents[2]/'fixtures/official_baseline_v1.json').read_text())
+ permissions=next(item for item in baseline['roles'] if item['id']==role)
+ session_id=f's7-session-{role}-{uuid.uuid4()}'
+ first_id=f's7-first-{role}-{uuid.uuid4()}'
+ second_id=f's7-second-{role}-{uuid.uuid4()}'
+ with connect(PLATFORM_DB) as db:
+  db.execute(
+   'INSERT INTO sessions(id,role_id,permission_snapshot_id,permission_snapshot,config_version_id,created_at) VALUES(?,?,?,?,?,?)',
+   (session_id,role,'p',json.dumps(permissions,ensure_ascii=False),'official-v1','now'),
+  )
+  db.execute(
+   'INSERT INTO requests(id,session_id,trace_id,scenario_id,case_id,question,mode,status,config_version_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
+   (first_id,session_id,'trace-first','scenario-7',case_id,first_question,'POC','PENDING','official-v1','now'),
+  )
+ engine=Engine()
+ asyncio.run(engine.run(PipelineContext(
+  session_id,first_id,role,'official-v1',first_question,
+  scenario_id='scenario-7',case_id=case_id,permissions=permissions,config=baseline,
+ )))
+ with connect(PLATFORM_DB) as db:
+  first=db.execute('SELECT status,last_layer FROM requests WHERE id=?',(first_id,)).fetchone()
+  first_layers=[row[0] for row in db.execute('SELECT layer_code FROM layer_executions WHERE request_id=? ORDER BY id',(first_id,))]
+  first_sql_count=db.execute('SELECT COUNT(*) FROM sql_executions WHERE request_id=?',(first_id,)).fetchone()[0]
+  session_context=json.loads(db.execute('SELECT context FROM sessions WHERE id=?',(session_id,)).fetchone()[0])
+  db.execute(
+   'INSERT INTO requests(id,session_id,parent_request_id,trace_id,scenario_id,case_id,question,mode,status,config_version_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+   (second_id,session_id,first_id,'trace-second','scenario-7',case_id,completion_question,'POC','PENDING','official-v1','now'),
+  )
+ assert (first['status'],first['last_layer'])==('WAITING_INPUT','L2')
+ assert first_layers==['L1','L2']
+ assert first_sql_count==0
+ assert session_context['metric']==('retail_cur' if role=='retail' else 'loan_cur')
+ asyncio.run(engine.run(PipelineContext(
+  session_id,second_id,role,'official-v1',completion_question,first_id,
+  'scenario-7',case_id,'POC',session_context,permissions=permissions,config=baseline,
+ )))
+ with connect(PLATFORM_DB) as db:
+  second=db.execute('SELECT status,last_layer,parent_request_id FROM requests WHERE id=?',(second_id,)).fetchone()
+  second_layers=[row[0] for row in db.execute('SELECT layer_code FROM layer_executions WHERE request_id=? ORDER BY id',(second_id,))]
+  second_sql_count=db.execute('SELECT COUNT(*) FROM sql_executions WHERE request_id=?',(second_id,)).fetchone()[0]
+ assert (second['status'],second['last_layer'],second['parent_request_id'])==('SUCCEEDED','L7',first_id)
+ assert second_layers==['L1','L2','L3','L4','L5','L6','L7']
+ assert second_sql_count>=1

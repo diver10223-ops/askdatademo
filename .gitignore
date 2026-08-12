@@ -13,4 +13,6 @@ tools/clickhouse/clickhouse
 access/
 preprocessed_configs/
 backups/*.zip
+.codex/
+docs/reference-screenshots/
 .pytest_cache/
