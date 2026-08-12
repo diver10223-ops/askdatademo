@@ -254,7 +254,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P330 身份与组织模型
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 实现本地用户影子记录、机构、岗位、外部身份提供方及主体映射；认证协议通过适配器接入。客户协议未知时使用测试身份Provider，不实现客户专属字段硬编码。
 
@@ -502,7 +502,7 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | M2已通过，下一步P330建立身份与组织模型 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P330已通过，下一步P331实现权限与数据范围 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
@@ -685,6 +685,20 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 结论 | 官方JSON、前端共用种子、运行默认值及当前旧`admin_resources`均进入规范化实体、发布明细和来源账本；导入默认关闭，仅在初始化/恢复时显式启用，JSON不再被设计为日常编辑事实源 |
 | 遗留问题 | M4完成管理API切换前，旧FastAPI后台仍服务V1.x演示；禁止在兼容期无对账双写 |
 | 批准 | M2门禁通过，可进入M3身份权限与审批审计 |
+
+### P330执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P330 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V4建立认证源、外部主体、外部组/角色映射和认证事件；`IdentityProvisioningTests`证明同一外部主体两次JIT登录只创建一个影子用户/映射、追加两条登录事件，禁用认证源后拒绝登录；Java总计11 tests、0 failures |
+| 结论 | 认证协议通过`IdentityProviderAdapter`隔离；测试Provider仅在显式属性启用；外部唯一主体、机构映射、属性摘要和认证审计已入库，不保存测试凭据 |
+| 遗留问题 | 客户OIDC/SAML/LDAP元数据、组/机构Claim和登出撤销联调归M8；M3后续补权限缓存失效和审批 |
+| 批准 | 满足P330退出条件，可进入P331权限与数据范围 |
 
 ## 12. 下一步
 
