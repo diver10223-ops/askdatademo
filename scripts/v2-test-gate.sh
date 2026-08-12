@@ -57,6 +57,7 @@ if rg -n '<(link|script)[^>]+(href|src)=["]https?://|fetch\(["]https?://|new (We
 fi
 echo "V2_TEST_GATE_PASS offline-external-dependency-scan"
 run performance-smoke "$python_bin" scripts/v2-performance-smoke.py
+run migration-drill bash scripts/v2-migration-drill.sh
 run recovery-drill bash scripts/v2-disaster-recovery-drill.sh
 run patch-integrity git diff --check
 echo "V2_TEST_GATE_PASS all customer_credentials=absent artifacts=$gate_data"

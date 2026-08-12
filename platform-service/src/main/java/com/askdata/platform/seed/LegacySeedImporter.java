@@ -1,5 +1,6 @@
 package com.askdata.platform.seed;
 
+import com.askdata.platform.audit.AuditLogService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +22,12 @@ import java.util.UUID;
 @Service
 public class LegacySeedImporter {
     private final JdbcTemplate jdbc;
+    private final AuditLogService audit;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public LegacySeedImporter(JdbcTemplate jdbc) {
+    public LegacySeedImporter(JdbcTemplate jdbc, AuditLogService audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     @Transactional
@@ -66,6 +69,16 @@ public class LegacySeedImporter {
         upsertLedger("runtime_defaults", runtimePath, runtimeHash, runtime.size());
         upsertLedger("frontend_baseline", baselinePath, baselineHash, countBaselineRows(baseline));
         upsertLedger("legacy_admin_resources", resourcesPath, resourcesHash, resources.size());
+        audit.append(new AuditLogService.AuditEvent(
+                "legacy-migration-" + baselineHash.substring(0, 16), null, "migration-tool",
+                "MIGRATE_LEGACY_BASELINE", "CONFIG_SOURCE", baseline.get("id").asText(), null,
+                "{\"roles\":" + baseline.get("roles").size()
+                        + ",\"scenarios\":" + baseline.get("scenarios").size()
+                        + ",\"cases\":" + countCases(baseline)
+                        + ",\"turns\":" + countTurns(baseline)
+                        + ",\"legacyResources\":" + resources.size()
+                        + ",\"baselineSha256\":\"" + baselineHash + "\"}",
+                null, null, "SUCCEEDED", null));
         return new ImportSummary(baseline.get("roles").size(), baseline.get("scenarios").size(),
                 countCases(baseline), countTurns(baseline), resources.size(), baselineHash, runtimeHash);
     }

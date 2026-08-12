@@ -1,5 +1,6 @@
 package com.askdata.platform;
 
+import com.askdata.platform.audit.AuditLogService;
 import com.askdata.platform.seed.LegacySeedImporter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LegacySeedImporterTests {
     @Autowired LegacySeedImporter importer;
     @Autowired JdbcTemplate jdbc;
+    @Autowired AuditLogService audit;
 
     @Test
     void officialRuntimeFrontendAndLegacyResourcesImportIdempotently() throws Exception {
@@ -54,6 +56,11 @@ class LegacySeedImporterTests {
         assertThat(count("iam_role_org_scope")).isEqualTo(7);
         assertThat(count("iam_role_metric_scope")).isEqualTo(7);
         assertThat(count("iam_role_table_scope")).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from audit_operation_log where action='MIGRATE_LEGACY_BASELINE' and result='SUCCEEDED'", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select after_json from audit_operation_log where action='MIGRATE_LEGACY_BASELINE'", String.class))
+                .contains("\"roles\":3", "\"scenarios\":8", "\"cases\":24", "\"turns\":33", "\"legacyResources\":5")
+                .doesNotContain("source_path", "credential", "password");
+        assertThat(audit.verify()).isEqualTo(new AuditLogService.Verification(true, null, 1));
     }
 
     private int[] counts() {

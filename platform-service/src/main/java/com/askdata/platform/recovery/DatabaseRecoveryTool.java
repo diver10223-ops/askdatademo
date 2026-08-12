@@ -48,10 +48,30 @@ public final class DatabaseRecoveryTool {
             var secrets=number(connection,"select count(*) from ai_secret_ref");
             var requests=number(connection,"select count(*) from run_request");
             var audits=number(connection,"select count(*) from audit_operation_log");
+            var seedImports=number(connection,"select count(*) from cfg_seed_import");
+            var roles=number(connection,"select count(*) from iam_role");
+            var scenarios=number(connection,"select count(*) from flow_scenario");
+            var cases=number(connection,"select count(*) from flow_scenario_case");
+            var turns=number(connection,"select count(*) from flow_scenario_turn");
+            var releaseItems=number(connection,"select count(*) from cfg_release_item");
+            var orgScopes=number(connection,"select count(*) from iam_role_org_scope");
+            var metricScopes=number(connection,"select count(*) from iam_role_metric_scope");
+            var tableScopes=number(connection,"select count(*) from iam_role_table_scope");
+            var migrationAudits=number(connection,"select count(*) from audit_operation_log where action='MIGRATE_LEGACY_BASELINE' and result='SUCCEEDED'");
+            var orphanLinks=number(connection,"select "
+                    + "(select count(*) from flow_scenario_role x left join flow_scenario s on s.id=x.scenario_id left join iam_role r on r.id=x.role_id where s.id is null or r.id is null)+"
+                    + "(select count(*) from flow_scenario_case x left join flow_scenario s on s.id=x.scenario_id left join iam_role r on r.id=x.role_id where s.id is null or r.id is null)+"
+                    + "(select count(*) from flow_scenario_turn x left join flow_scenario_case c on c.id=x.case_id where c.id is null)+"
+                    + "(select count(*) from cfg_current_release x left join cfg_release r on r.id=x.release_id where r.id is null)");
             var releaseMaterial=text(connection,"select coalesce(string_agg(release_no||':'||snapshot_hash,',' order by release_no),'') from cfg_release");
             var secretMaterial=text(connection,"select coalesce(string_agg(code||':'||fingerprint||':'||status,',' order by code),'') from ai_secret_ref");
             var content="engine="+safe(engine)+"\nflyway.version="+safe(flyway)+"\nrelease.count="+releases+"\ncurrent.release.count="+current
                     +"\nsecret.reference.count="+secrets+"\nrequest.count="+requests+"\naudit.count="+audits
+                    +"\nseed.import.count="+seedImports+"\nrole.count="+roles+"\nscenario.count="+scenarios
+                    +"\nscenario.case.count="+cases+"\nscenario.turn.count="+turns+"\nrelease.item.count="+releaseItems
+                    +"\nrole.org.scope.count="+orgScopes+"\nrole.metric.scope.count="+metricScopes
+                    +"\nrole.table.scope.count="+tableScopes+"\nmigration.audit.count="+migrationAudits
+                    +"\norphan.link.count="+orphanLinks
                     +"\nrelease.snapshot.digest="+hash(releaseMaterial)+"\nsecret.reference.digest="+hash(secretMaterial)+"\n";
             Files.writeString(output,content,StandardCharsets.UTF_8);
         }
