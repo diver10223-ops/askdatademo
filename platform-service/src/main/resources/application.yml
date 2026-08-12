@@ -43,6 +43,10 @@ askdata:
     base-url: ${ASKDATA_EXECUTION_BASE_URL:http://127.0.0.1:8000}
     service-token: ${ASKDATA_INTERNAL_SERVICE_TOKEN:askdata-local-service-token}
     reconcile-delay-ms: ${ASKDATA_EXECUTION_RECONCILE_DELAY_MS:1000}
+    max-concurrency: ${ASKDATA_EXECUTION_MAX_CONCURRENCY:30}
+    per-user-concurrency: ${ASKDATA_EXECUTION_PER_USER_CONCURRENCY:2}
+    queue-capacity: ${ASKDATA_EXECUTION_QUEUE_CAPACITY:50}
+    max-queue-wait-ms: ${ASKDATA_EXECUTION_MAX_QUEUE_WAIT_MS:5000}
 
 logging:
   pattern:

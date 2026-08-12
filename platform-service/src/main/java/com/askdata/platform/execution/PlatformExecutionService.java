@@ -2,7 +2,6 @@ package com.askdata.platform.execution;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -15,10 +14,10 @@ public class PlatformExecutionService {
     private final JdbcTemplate jdbc;
     private final ExecutionClient client;
     private final RuntimeFactPersistenceService facts;
+    private final ExecutionAdmissionController admission;
     private final ObjectMapper mapper=new ObjectMapper();
-    public PlatformExecutionService(JdbcTemplate jdbc,ExecutionClient client,RuntimeFactPersistenceService facts){this.jdbc=jdbc;this.client=client;this.facts=facts;}
+    public PlatformExecutionService(JdbcTemplate jdbc,ExecutionClient client,RuntimeFactPersistenceService facts,ExecutionAdmissionController admission){this.jdbc=jdbc;this.client=client;this.facts=facts;this.admission=admission;}
 
-    @Transactional
     public ExecutionAccepted submit(QueryCommand query,String traceId,String idempotencyKey){
         if(idempotencyKey==null||idempotencyKey.length()<8)throw new IllegalArgumentException("Idempotency-Key至少8个字符");
         var session=jdbc.query("select s.id,s.public_id,s.user_id,s.role_snapshot_json,s.permission_snapshot_json,s.config_release_id,s.execution_mode,u.public_id,r.release_no,r.snapshot_json from run_session s join iam_user u on u.id=s.user_id join cfg_release r on r.id=s.config_release_id where s.public_id=? and s.active=true",
@@ -30,11 +29,12 @@ public class PlatformExecutionService {
         Long scenarioId=null;
         if(query.scenarioId()!=null)scenarioId=jdbc.query("select id from flow_scenario where code=? and status='ENABLED'",(rs,n)->rs.getLong(1),query.scenarioId()).stream().findFirst().orElseThrow(()->new IllegalArgumentException("场景不存在或未启用"));
         var requestId=UUID.randomUUID();
-        jdbc.update("insert into run_request(public_id,session_id,parent_request_id,user_id,trace_id,idempotency_key,scenario_id,question,mode,status) values (?,?,?,?,?,?,?,?,?,'PENDING')",requestId.toString(),session.id(),parentId,session.userId(),traceId,idempotencyKey,scenarioId,query.question(),session.mode());
+        var permit=admission.acquire(session.userId());
         try{
+            jdbc.update("insert into run_request(public_id,session_id,parent_request_id,user_id,trace_id,idempotency_key,scenario_id,question,mode,status,queue_wait_ms,queued_at,admitted_at) values (?,?,?,?,?,?,?,?,?,'PENDING',?,?,current_timestamp)",requestId.toString(),session.id(),parentId,session.userId(),traceId,idempotencyKey,scenarioId,query.question(),session.mode(),permit.waitMs(),permit.queued()?java.time.OffsetDateTime.now():null);
             var command=new ExecutionCommand(requestId,UUID.fromString(session.publicId()),parentPublicId,session.subjectPublicId(),read(session.roleJson(),new TypeReference<List<String>>(){}),query.question(),query.scenarioId(),ExecutionCommand.ExecutionMode.valueOf(session.mode()),read(session.permissionJson(),new TypeReference<Map<String,Object>>(){}),session.releaseNo(),read(session.snapshotJson(),new TypeReference<Map<String,Object>>(){}),null,query.timeoutMs());
-            return client.submit(command,traceId,idempotencyKey);
-        }catch(RuntimeException exception){jdbc.update("update run_request set status='FAILED',termination_reason='EXECUTION_PLANE_UNAVAILABLE',completed_at=current_timestamp where public_id=?",requestId.toString());throw exception;}
+            var accepted=client.submit(command,traceId,idempotencyKey);admission.activate(requestId.toString(),permit);return accepted;
+        }catch(RuntimeException exception){jdbc.update("update run_request set status='FAILED',termination_reason='EXECUTION_PLANE_UNAVAILABLE',completed_at=current_timestamp where public_id=?",requestId.toString());permit.close();throw exception;}
     }
 
     public Map<String,Object> detail(UUID requestId,String traceId){return facts.synchronize(requestId,client.state(requestId,traceId));}

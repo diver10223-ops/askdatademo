@@ -2,6 +2,7 @@ package com.askdata.platform.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import com.askdata.platform.provider.ProviderManagementException;
+import com.askdata.platform.execution.ExecutionAdmissionController;
 import org.slf4j.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProviderManagementException.class)
     ResponseEntity<ApiError> providerManagement(ProviderManagementException exception) {
         return response(HttpStatus.BAD_REQUEST, "PROVIDER_CONFIGURATION_INVALID", exception.getMessage());
+    }
+
+    @ExceptionHandler(ExecutionAdmissionController.OverloadedException.class)
+    ResponseEntity<ApiError> overloaded(ExecutionAdmissionController.OverloadedException exception) {
+        var status=exception.code().equals("EXECUTION_QUEUE_FULL")?HttpStatus.TOO_MANY_REQUESTS:HttpStatus.SERVICE_UNAVAILABLE;
+        return response(status,exception.code(),exception.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

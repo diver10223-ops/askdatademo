@@ -350,7 +350,7 @@ M5退出条件：Java/Python企业链路矩阵通过；原一期/二期33轮矩�
 
 ### P361 队列、并发和超载
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 初始基线：全局执行并发30—50、单用户2、等待队列50、最大排队5秒、超载1秒内返回429/503。最终值由压测定标。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P360已通过，下一步P361队列、并发和超载 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P361已通过，下一步P362 SSE与取消 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360已完成，下一步执行P361。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；M1—M5及P360—P361已完成，下一步执行P362。
 
 ## 11. 执行记录模板
 
@@ -868,12 +868,26 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 当前产品基线使用数据库归档而非客户数据库原生月分区；对象存储快照、目标数据库分区DDL和归档介质在M8按客户环境确定；SSE共享读取与重连在P362完成 |
 | 批准 | 满足P360退出条件，可进入P361队列、并发和超载 |
 
+### P361执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P361 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | Java专项`./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=ExecutionAdmissionTests,PlatformExecutionServiceTests,RuntimeFactPersistenceTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V13为Request增加队列名、排队时间、入队/准入时间和索引；公平准入器默认全局30、单用户2、等待队列50、最大等待5秒，均可通过环境变量配置；队列满抛`EXECUTION_QUEUE_FULL`并在1秒内映射429，等待超时映射503；终态事实同步释放许可，重启按平台库未完成且已准入Request重建许可；专项覆盖全局/单用户限制、队列容量、快速拒绝、超时和释放后准入 |
+| 结论 | Java控制面在调用Python执行面前完成准入，排队耗时进入平台事实；幂等重放不重复占用许可，执行面失败和终态同步均释放许可，默认值位于计划初始基线范围 |
+| 遗留问题 | 当前公平队列为单Java实例产品基线，多实例共享配额需客户Redis/数据库锁服务并在M8适配；最终30/50并发值、队列等待和线程/连接池参数由P372产品压测及客户压测定标 |
+| 批准 | 满足P361退出条件，可进入P362 SSE与取消 |
+
 ## 12. 下一步
 
 M0—M5已经完成，M6执行中。当前执行链为：
 
 ~~~text
-P361 队列、并发和超载
+P362 SSE与取消
   ↓
 M6 用户端和管理端闭环
   ↓

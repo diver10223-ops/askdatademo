@@ -16,8 +16,9 @@ import java.util.UUID;
 @Service
 public class RuntimeFactPersistenceService {
     private final JdbcTemplate jdbc;
+    private final ExecutionAdmissionController admission;
     private final ObjectMapper mapper=new ObjectMapper();
-    public RuntimeFactPersistenceService(JdbcTemplate jdbc){this.jdbc=jdbc;}
+    public RuntimeFactPersistenceService(JdbcTemplate jdbc,ExecutionAdmissionController admission){this.jdbc=jdbc;this.admission=admission;}
 
     @Transactional
     public Map<String,Object> synchronize(UUID publicId,Map<String,Object> state){
@@ -31,6 +32,7 @@ public class RuntimeFactPersistenceService {
         for(var event:list(result.get("events")))upsertEvent(requestId,event);
         var snapshot=result.get("resultSnapshot");
         if(snapshot instanceof List<?> rows&&!rows.isEmpty())upsertResult(requestId,rows,bool(result,"masked"),text(result,"resultClassification"),text(result,"resultExpiresAt"));
+        if(!List.of("PENDING","RUNNING","CANCELLATION_REQUESTED").contains(text(state,"status")))admission.complete(publicId.toString());
         return state;
     }
 
