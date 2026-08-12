@@ -182,13 +182,15 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P310 冻结服务职责
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 - Java：身份、权限、管理配置、审批发布、审计、会话入口和运维；
 - Python：L1—L7引擎、模型与数据源Provider、SQL计划执行和结果解读；
 - 禁止长期维护两套可写后台；兼容期内旧Python管理API只读或受控双读，不做无审计双写。
 
 退出条件：形成服务边界、调用方向、数据所有权和迁移期读写矩阵。
+
+设计基线见`PRODUCT_V2_SERVICE_BOUNDARY.md`。
 
 ### P311 建立Spring Boot工程骨架
 
@@ -499,8 +501,8 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 2 | P301 一二期门禁 | NOT STARTED | 重跑完整仓库内验收 |
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
-| 5 | P310 服务职责冻结 | NOT STARTED | M0已通过，可启动V2.0设计冻结 |
-| 6 | M1—M7 产品基线 | NOT STARTED | 按依赖顺序实施 |
+| 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | 下一步P311建立Spring Boot骨架 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；下一步从P310开始。
@@ -572,13 +574,25 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | 正式并行启动时分别设置独立`ASKDATA_DATA_DIR`和端口；V2.0 Java环境在P311配置 |
 | 批准 | M0技术门禁通过 |
 
+### P310执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P310 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证 | 对照当前FastAPI API、SQLite表、前端适配器和V2.0数据库设计完成职责审计 |
+| 证据 | `docs/PRODUCT_V2_SERVICE_BOUNDARY.md` |
+| 结论 | Java为平台控制面和外部入口；Python为七层执行面；生产表唯一写入所有者；迁移期禁止业务双写 |
+| 遗留问题 | P312冻结具体OpenAPI/事件Schema；客户认证和数据库产品在M8适配 |
+| 批准 | 作为P311、P312实施基线 |
+
 ## 12. 下一步
 
 M0已经完成。当前执行链为：
 
 ~~~text
-P310 冻结服务职责
-  ↓
 P311 建立Spring Boot工程骨架
   ↓
 P312 固化Java/Python内部契约
