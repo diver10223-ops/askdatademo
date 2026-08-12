@@ -244,7 +244,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P323 建立种子与旧数据迁移
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 将`official_baseline_v1.json`、`demo_runtime_defaults.json`、前端seeds和`admin_resources`转换为可重复、幂等、可对账的迁移输入。官方JSON保留为初始化/灾备种子，不再作为日常编辑事实源。
 
@@ -502,7 +502,7 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P320—P322已通过，下一步P323建立种子与旧数据迁移 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | M2已通过，下一步P330建立身份与组织模型 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
@@ -671,6 +671,20 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 结论 | 发布/当前指针/变更项、秘密引用、不可变审计、机构用户角色权限、数据源表字段、指标维度、参数/SQL模板/场景关联、会话和请求主表已落库；秘密仓库API不返回外部引用、密文、值或密码字段 |
 | 遗留问题 | M3/M4继续补齐外部身份、细粒度范围、审批流程、Provider及全部管理API；P323导入官方种子并对账 |
 | 批准 | 满足P322退出条件，可进入P323旧数据迁移 |
+
+### P323执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P323 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q test`；专项`-Dtest=LegacySeedImporterTests test` |
+| 证据 | 两次幂等导入后：3机构、3用户、3角色、9角色权限、3指标、2维度、8场景、24角色场景关系、24用例、33轮、4来源账本、6发布明细（运行默认值+5旧后台资源）；官方基线SHA256=`9f89eab9d1b646ce725af37c4d4ba0316fce24f6f212f150a8f5c8bc12bd604d`，运行默认值SHA256=`f6fd5ebb027986021d3290954bb225e3c7ee77583768292a116ae59484a7dab0` |
+| 结论 | 官方JSON、前端共用种子、运行默认值及当前旧`admin_resources`均进入规范化实体、发布明细和来源账本；导入默认关闭，仅在初始化/恢复时显式启用，JSON不再被设计为日常编辑事实源 |
+| 遗留问题 | M4完成管理API切换前，旧FastAPI后台仍服务V1.x演示；禁止在兼容期无对账双写 |
+| 批准 | M2门禁通过，可进入M3身份权限与审批审计 |
 
 ## 12. 下一步
 

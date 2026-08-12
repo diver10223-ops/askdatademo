@@ -1,0 +1,206 @@
+package com.askdata.platform.seed;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.time.OffsetDateTime;
+import java.util.HexFormat;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class LegacySeedImporter {
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    public LegacySeedImporter(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    @Transactional
+    public ImportSummary importDirectory(Path directory) throws IOException {
+        var baselinePath = directory.resolve("official_baseline_v1.json");
+        var runtimePath = directory.resolve("demo_runtime_defaults.json");
+        var resourcesPath = directory.resolve("legacy_admin_resources_v1.json");
+        var baselineBytes = Files.readAllBytes(baselinePath);
+        var runtimeBytes = Files.readAllBytes(runtimePath);
+        var resourcesBytes = Files.readAllBytes(resourcesPath);
+        var baseline = mapper.readTree(baselineBytes);
+        var runtime = mapper.readTree(runtimeBytes);
+        var resources = mapper.readTree(resourcesBytes);
+
+        upsertRelease(baseline, sha256(baselineBytes));
+        importIdentity(baseline);
+        importAssets(baseline);
+        importFlow(baseline);
+        importReleaseItem("runtime_defaults", "demo-runtime-defaults", runtime, sha256(runtimeBytes));
+        for (var resource : resources) {
+            importReleaseItem("legacy_admin:" + resource.get("kind").asText(), resource.get("id").asText(),
+                    resource, sha256(mapper.writeValueAsBytes(resource)));
+        }
+        upsertLedger("official_baseline", baselinePath, sha256(baselineBytes), countBaselineRows(baseline));
+        upsertLedger("runtime_defaults", runtimePath, sha256(runtimeBytes), runtime.size());
+        upsertLedger("frontend_baseline", baselinePath, sha256(baselineBytes), countBaselineRows(baseline));
+        upsertLedger("legacy_admin_resources", resourcesPath, sha256(resourcesBytes), resources.size());
+        return new ImportSummary(baseline.get("roles").size(), baseline.get("scenarios").size(),
+                countCases(baseline), countTurns(baseline), resources.size(), sha256(baselineBytes), sha256(runtimeBytes));
+    }
+
+    private void upsertRelease(JsonNode baseline, String hash) throws IOException {
+        var existing = count("select count(*) from cfg_release where release_no=?", baseline.get("id").asText());
+        var snapshot = mapper.writeValueAsString(baseline);
+        if (existing == 0) {
+            jdbc.update("insert into cfg_release(release_no,name,status,snapshot_json,snapshot_hash,change_summary,published_at) values (?,?,?,?,?,?,?)",
+                    baseline.get("id").asText(), "一期二期官方基线", "PUBLISHED", snapshot, hash, "P323幂等迁移", OffsetDateTime.now());
+        } else {
+            jdbc.update("update cfg_release set snapshot_json=?, snapshot_hash=? where release_no=?", snapshot, hash, baseline.get("id").asText());
+        }
+        var releaseId = releaseId();
+        if (count("select count(*) from cfg_current_release where environment='DEMO'") == 0) {
+            jdbc.update("insert into cfg_current_release(environment,release_id) values ('DEMO',?)", releaseId);
+        } else {
+            jdbc.update("update cfg_current_release set release_id=?, updated_at=current_timestamp where environment='DEMO'", releaseId);
+        }
+    }
+
+    private void importIdentity(JsonNode baseline) {
+        var orgs = new LinkedHashSet<String>();
+        baseline.get("roles").forEach(role -> role.get("orgs").forEach(org -> orgs.add(org.asText())));
+        int sort = 0;
+        for (var name : orgs) {
+            var code = orgCode(name);
+            if (count("select count(*) from iam_org where code=?", code) == 0) {
+                jdbc.update("insert into iam_org(code,name,org_type,path,level_no,sort_no,status) values (?,?,?,?,?,?,?)",
+                        code, name, name.equals("全行") ? "HEAD_OFFICE" : "BRANCH", "/" + code, name.equals("全行") ? 0 : 1, sort++, "ENABLED");
+            }
+        }
+        for (var role : baseline.get("roles")) {
+            var code = role.get("id").asText();
+            if (count("select count(*) from iam_role where code=?", code) == 0) {
+                jdbc.update("insert into iam_role(code,name,role_type,priority,status) values (?,?,?,?,?)",
+                        code, role.get("name").asText(), code.equals("admin") ? "ADMIN" : "BUSINESS", code.equals("admin") ? 100 : 10, "ENABLED");
+            }
+            var userPublicId = UUID.nameUUIDFromBytes(("demo:" + code).getBytes(StandardCharsets.UTF_8)).toString();
+            if (count("select count(*) from iam_user where public_id=?", userPublicId) == 0) {
+                var orgId = id("select id from iam_org where code=?", orgCode(role.get("orgs").get(0).asText()));
+                jdbc.update("insert into iam_user(public_id,username,display_name,user_type,org_id,identity_provider_code,external_subject,status) values (?,?,?,?,?,?,?,?)",
+                        userPublicId, code, role.get("name").asText(), code.equals("admin") ? "ADMIN" : "BUSINESS", orgId, "demo-local", code, "ENABLED");
+            }
+            var roleId = id("select id from iam_role where code=?", code);
+            var userId = id("select id from iam_user where public_id=?", userPublicId);
+            if (count("select count(*) from iam_user_role where user_id=? and role_id=?", userId, roleId) == 0) {
+                jdbc.update("insert into iam_user_role(user_id,role_id) values (?,?)", userId, roleId);
+            }
+            for (var feature : role.get("features")) {
+                var permissionCode = "feature:" + feature.asText();
+                if (count("select count(*) from iam_permission where code=?", permissionCode) == 0) {
+                    jdbc.update("insert into iam_permission(code,name,permission_type,status) values (?,?,?,?)", permissionCode, feature.asText(), "FEATURE", "ENABLED");
+                }
+                var permissionId = id("select id from iam_permission where code=?", permissionCode);
+                if (count("select count(*) from iam_role_permission where role_id=? and permission_id=?", roleId, permissionId) == 0) {
+                    jdbc.update("insert into iam_role_permission(role_id,permission_id,effect) values (?,?,'ALLOW')", roleId, permissionId);
+                }
+            }
+        }
+    }
+
+    private void importAssets(JsonNode baseline) {
+        var metrics = Map.of("贷款投放", "loan_cur", "零售贷款", "retail_cur", "对公贷款", "corporate_cur");
+        baseline.at("/assets/metrics").forEach(metric -> {
+            var name = metric.asText();
+            if (count("select count(*) from meta_metric where code=?", metrics.get(name)) == 0) {
+                jdbc.update("insert into meta_metric(code,name,business_definition,calculation_expression,unit,aggregation_type,classification_level,detail_allowed,status) values (?,?,?,?,?,?,?,?,?)",
+                        metrics.get(name), name, name + "官方演示口径", metrics.get(name), "元", "SUM", "INTERNAL", false, "ENABLED");
+            }
+        });
+        var dimensions = Map.of("机构", "org", "统计日期", "stat_dt");
+        baseline.at("/assets/dimensions").forEach(dimension -> {
+            var name = dimension.asText();
+            if (count("select count(*) from meta_dimension where code=?", dimensions.get(name)) == 0) {
+                jdbc.update("insert into meta_dimension(code,name,dimension_type,status) values (?,?,?,?)", dimensions.get(name), name, "STANDARD", "ENABLED");
+            }
+        });
+        var sql = baseline.at("/assets/sql_template").asText();
+        if (count("select count(*) from flow_sql_template where code='official-loan-query'") == 0) {
+            jdbc.update("insert into flow_sql_template(code,name,template_type,sql_text,dialect,max_rows,timeout_seconds,checksum,status) values (?,?,?,?,?,?,?,?,?)",
+                    "official-loan-query", "官方贷款查询", "PARAMETERIZED", sql, "SQLITE", 1000, 30, sha256(sql.getBytes(StandardCharsets.UTF_8)), "ENABLED");
+        }
+    }
+
+    private void importFlow(JsonNode baseline) {
+        for (var scenario : baseline.get("scenarios")) {
+            var code = scenario.get("id").asText();
+            var terminal = maxTerminalLayer(scenario);
+            if (count("select count(*) from flow_scenario where code=?", code) == 0) {
+                jdbc.update("insert into flow_scenario(code,name,terminal_layer,fallback_policy,sort_no,status) values (?,?,?,?,?,?)",
+                        code, scenario.get("name").asText(), terminal, "NONE", scenario.get("number").asInt(), "ENABLED");
+            }
+            var scenarioId = id("select id from flow_scenario where code=?", code);
+            if (terminal.equals("L7") && count("select count(*) from flow_scenario_sql where scenario_id=?", scenarioId) == 0) {
+                jdbc.update("insert into flow_scenario_sql(scenario_id,sql_template_id,sequence_no,purpose,required_flag) values (?,?,1,?,true)",
+                        scenarioId, id("select id from flow_sql_template where code='official-loan-query'"), "官方基线查询");
+            }
+            for (var scenarioCase : scenario.get("cases")) {
+                var roleId = id("select id from iam_role where code=?", scenarioCase.get("role_id").asText());
+                if (count("select count(*) from flow_scenario_role where scenario_id=? and role_id=?", scenarioId, roleId) == 0) {
+                    jdbc.update("insert into flow_scenario_role(scenario_id,role_id,allowed_modes_json) values (?,?,?)", scenarioId, roleId, "[\"DEMO\",\"POC\"]");
+                }
+                var caseCode = scenarioCase.get("id").asText();
+                if (count("select count(*) from flow_scenario_case where case_code=?", caseCode) == 0) {
+                    jdbc.update("insert into flow_scenario_case(scenario_id,role_id,case_code,is_default,status) values (?,?,?,?,?)",
+                            scenarioId, roleId, caseCode, scenarioCase.get("default").asBoolean(), "ENABLED");
+                }
+                var caseId = id("select id from flow_scenario_case where case_code=?", caseCode);
+                for (var turn : scenarioCase.get("turns")) {
+                    if (count("select count(*) from flow_scenario_turn where case_id=? and turn_no=?", caseId, turn.get("turn").asInt()) == 0) {
+                        jdbc.update("insert into flow_scenario_turn(case_id,turn_no,question,expected_status,expected_last_layer,expected_execution,final_display) values (?,?,?,?,?,?,?)",
+                                caseId, turn.get("turn").asInt(), turn.get("question").asText(), turn.get("expected_status").asText(),
+                                turn.get("expected_last_layer").asText(), turn.get("execution").asText(), turn.get("final_display").asText());
+                    }
+                }
+            }
+        }
+    }
+
+    private void importReleaseItem(String type, String resourceId, JsonNode payload, String hash) throws IOException {
+        var releaseId = releaseId();
+        var json = mapper.writeValueAsString(payload);
+        if (count("select count(*) from cfg_release_item where release_id=? and resource_type=? and resource_id=?", releaseId, type, resourceId) == 0) {
+            jdbc.update("insert into cfg_release_item(release_id,resource_type,resource_id,operation,after_json,content_hash) values (?,?,?,'CREATE',?,?)",
+                    releaseId, type, resourceId, json, hash);
+        } else {
+            jdbc.update("update cfg_release_item set after_json=?,content_hash=? where release_id=? and resource_type=? and resource_id=?",
+                    json, hash, releaseId, type, resourceId);
+        }
+    }
+
+    private void upsertLedger(String code, Path path, String hash, int rows) {
+        if (count("select count(*) from cfg_seed_import where source_code=?", code) == 0) {
+            jdbc.update("insert into cfg_seed_import(source_code,source_path,source_hash,imported_rows) values (?,?,?,?)", code, path.toString(), hash, rows);
+        } else {
+            jdbc.update("update cfg_seed_import set source_path=?,source_hash=?,imported_rows=?,imported_at=current_timestamp where source_code=?", path.toString(), hash, rows, code);
+        }
+    }
+
+    private long releaseId() { return id("select id from cfg_release where release_no='official-demo-baseline-v1'"); }
+    private long id(String sql, Object... args) { return jdbc.queryForObject(sql, Long.class, args); }
+    private int count(String sql, Object... args) { return jdbc.queryForObject(sql, Integer.class, args); }
+    private int countCases(JsonNode baseline) { int n=0; for(var s:baseline.get("scenarios")) n+=s.get("cases").size(); return n; }
+    private int countTurns(JsonNode baseline) { int n=0; for(var s:baseline.get("scenarios")) for(var c:s.get("cases")) n+=c.get("turns").size(); return n; }
+    private int countBaselineRows(JsonNode baseline) { return baseline.get("roles").size()+baseline.get("scenarios").size()+countCases(baseline)+countTurns(baseline); }
+    private String orgCode(String name) { return switch (name) { case "全行" -> "org-all"; case "北京分行" -> "org-beijing"; case "上海分行" -> "org-shanghai"; default -> "org-" + sha256(name.getBytes(StandardCharsets.UTF_8)).substring(0, 12); }; }
+    private String maxTerminalLayer(JsonNode scenario) { int max=1; for(var c:scenario.get("cases")) for(var t:c.get("turns")) max=Math.max(max, Integer.parseInt(t.get("expected_last_layer").asText().substring(1))); return "L"+max; }
+    private String sha256(byte[] bytes) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); } catch (Exception e) { throw new IllegalStateException(e); } }
+
+    public record ImportSummary(int roles, int scenarios, int cases, int turns, int legacyResources,
+                                String baselineSha256, String runtimeSha256) {}
+}

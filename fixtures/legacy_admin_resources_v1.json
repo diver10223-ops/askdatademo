@@ -1,0 +1,7 @@
+[
+  {"kind":"assets","id":"demo-item","payload":{"name":"演示配置项"},"enabled":true},
+  {"kind":"datasources","id":"clickhouse-detail-security","payload":{"__page":"source-security","数据源/表":"clickhouse-poc/dwd_loan_detail","角色":"admin","涉密隔离":"开启","字段脱敏":"开启","缓存":"关闭","状态":"启用"},"enabled":true},
+  {"kind":"datasources","id":"clickhouse-loan-detail","payload":{"__page":"source-tables","数据源":"clickhouse-poc","表名":"dwd_loan_detail","关联指标":"loan_cur,retail_cur,corporate_cur","备注":"POC贷款业务明细表（敏感字段受控）","状态":"启用"},"enabled":true},
+  {"kind":"datasources","id":"clickhouse-loan-wide","payload":{"__page":"source-tables","数据源":"clickhouse-poc","表名":"dws_loan_aggr_wide","关联指标":"loan_cur,retail_cur,corporate_cur","备注":"POC贷款指标宽表","状态":"启用"},"enabled":true},
+  {"kind":"datasources","id":"clickhouse-wide-security","payload":{"__page":"source-security","数据源/表":"clickhouse-poc/dws_loan_aggr_wide","角色":"admin,beijing,retail","涉密隔离":"开启","字段脱敏":"开启","缓存":"关闭","状态":"启用"},"enabled":true}
+]

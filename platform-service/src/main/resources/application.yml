@@ -36,6 +36,9 @@ info:
     version: 2.0.0-SNAPSHOT
 
 askdata:
+  seed:
+    enabled: ${ASKDATA_SEED_ENABLED:false}
+    directory: ${ASKDATA_SEED_DIRECTORY:./fixtures}
   execution:
     base-url: ${ASKDATA_EXECUTION_BASE_URL:http://127.0.0.1:8000}
     service-token: ${ASKDATA_INTERNAL_SERVICE_TOKEN:askdata-local-service-token}
