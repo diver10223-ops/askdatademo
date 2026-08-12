@@ -51,3 +51,25 @@ def test_internal_health_requires_service_authentication():
         )
         assert response.status_code == 200
         assert response.json() == {"status": "ok", "version": "1.0.0"}
+
+
+def test_simulated_execution_is_idempotent_and_resumable():
+    headers = {
+        "X-Service-Token": "askdata-local-service-token",
+        "X-Trace-Id": "trace-p313",
+        "Idempotency-Key": "idem-p313-0001",
+    }
+    with TestClient(app) as client:
+        accepted = client.post("/internal/v1/executions", json=command_payload(), headers=headers)
+        assert accepted.status_code == 202
+        assert accepted.json()["status"] == "PENDING"
+        replay = client.post("/internal/v1/executions", json=command_payload(), headers=headers)
+        assert replay.json()["idempotentReplay"] is True
+        request_id = command_payload()["requestId"]
+        state = client.get(f"/internal/v1/executions/{request_id}", headers=headers)
+        assert state.json()["status"] == "SUCCEEDED"
+        events = client.get(f"/internal/v1/executions/{request_id}/events", headers=headers)
+        assert "event: request.created" in events.text
+        resumed = client.get(f"/internal/v1/executions/{request_id}/events", headers={**headers, "Last-Event-ID": "1"})
+        assert "event: request.created" not in resumed.text
+        assert "event: request.completed" in resumed.text

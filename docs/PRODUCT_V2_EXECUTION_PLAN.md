@@ -210,7 +210,7 @@ P300—P303全部`PASS`后才能开始会影响Java/Python边界或平台数据�
 
 ### P313 建立兼容入口
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 稳定演示保持原入口；产品V2.0通过独立端口或显式模式启用。未完成Java服务不得成为一期/二期启动的强依赖。
 
@@ -502,7 +502,7 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P311—P312已通过，下一步P313建立兼容入口 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | M1已通过，下一步P320冻结平台逻辑模型 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
 P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
@@ -615,6 +615,20 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 结论 | 契约覆盖版本、服务鉴权、Session/Request/Parent Request、主体与角色、权限快照、配置版本、Provider、幂等键、超时、取消、错误码、Trace及可续传SSE事件；Java DTO和Python Pydantic模型受同一契约测试约束 |
 | 遗留问题 | 本地默认服务令牌仅用于开发；非开发环境必须通过秘密引用注入，轮换与KMS适配在M3/M8验证 |
 | 批准 | 满足P312退出条件，作为P313联调基线 |
+
+### P313执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P313 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH bash scripts/v2-p313-smoke.sh`；`PYTHONPATH=backend .venv/bin/python -m pytest -q backend/tests`；`./platform-service/mvnw -f platform-service/pom.xml -q verify`；从稳定工作树运行`phase1-matrix.py` |
+| 证据 | 双进程脚本输出`P313 READY: Java control plane -> Python execution plane`；Java控制面在独立18080端口通过服务令牌调用Python执行面18000端口并透传Trace和幂等键；Python 32 passed；Java 4 tests、0 failures；稳定标签33轮矩阵退出码0 |
+| 结论 | V1.x演示继续使用原FastAPI入口且不依赖Java；产品V2.0使用独立Java入口；Python提供带鉴权、幂等、状态、取消和可续传SSE的P313模拟执行接口 |
+| 遗留问题 | P313执行结果为明确标记的模拟L1闭环；真实七层企业链路在M5接入，不能把本项证据用于宣称真实数据源联调 |
+| 批准 | M1门禁通过，可进入M2平台数据底座 |
 
 ## 12. 下一步
 
