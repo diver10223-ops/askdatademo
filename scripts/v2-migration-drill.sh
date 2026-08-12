@@ -29,12 +29,25 @@ inventory() {
 
 start_platform() {
   local url="$1" seed="$2" log="$3"
+  # H2 AUTO_SERVER leaves a short lock hand-off window after an inventory client exits.
+  sleep 2
   ASKDATA_PLATFORM_DB_URL="$url" ASKDATA_MIGRATION_DB_URL="$url" \
   ASKDATA_PLATFORM_DB_USERNAME=sa ASKDATA_PLATFORM_DB_PASSWORD=migration \
   ASKDATA_MIGRATION_DB_USERNAME=sa ASKDATA_MIGRATION_DB_PASSWORD=migration \
   ASKDATA_PLATFORM_PORT=0 ASKDATA_SEED_ENABLED="$seed" ASKDATA_SEED_DIRECTORY="$repo_root/fixtures" \
   java -jar "$jar_file" >"$log" 2>&1 &
   app_pid=$!
+  # Do not let an external inventory connection race the application's first file open.
+  for _attempt in $(seq 1 120); do
+    grep -q 'Started PlatformServiceApplication' "$log" && return 0
+    if ! kill -0 "$app_pid" 2>/dev/null; then
+      echo "migration application stopped during startup; log=$log" >&2
+      return 1
+    fi
+    sleep .25
+  done
+  echo "migration application startup timed out; log=$log" >&2
+  return 1
 }
 
 wait_for_inventory() {
