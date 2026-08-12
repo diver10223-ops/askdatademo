@@ -43,6 +43,14 @@ class LegacySeedImporterTests {
         assertThat(count("meta_synonym")).isEqualTo(2);
         assertThat(count("meta_recommendation")).isEqualTo(7);
         assertThat(count("meta_lineage_edge")).isEqualTo(3);
+        assertThat(count("flow_intent_rule")).isEqualTo(8);
+        assertThat(count("flow_layer_config")).isEqualTo(7);
+        assertThat(count("flow_parameter_rule")).isEqualTo(3);
+        assertThat(count("flow_quick_question")).isEqualTo(7);
+        assertThat(count("flow_dashboard")).isEqualTo(1);
+        assertThat(count("flow_dashboard_role")).isEqualTo(3);
+        assertThat(count("flow_fixture")).isEqualTo(1);
+        assertThat(count("flow_wording")).isEqualTo(1);
     }
 
     private int[] counts() {

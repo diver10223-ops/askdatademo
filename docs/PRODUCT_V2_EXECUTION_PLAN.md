@@ -288,7 +288,7 @@ M3退出条件：身份、权限、审批、发布、回滚和审计端到端测
 
 ### P341 流程场景配置入库
 
-**状态：**`NOT STARTED`
+**状态：**`PASS`
 
 迁移意图、参数、补全选项、SQL模板、场景、用例、轮次、快捷问题、Fixture和话术；发布版本影响新Session，不修改活动Session快照。
 
@@ -502,10 +502,10 @@ Skill源文件可以在内部源码仓库版本化，但必须从客户产品包
 | 3 | P302 稳定提交、标签和V2.0分支 | PASS | 以稳定标签作为V2.0开发起点 |
 | 4 | P303 工作树隔离 | PASS | 稳定标签工作树已建立并复验 |
 | 5 | P310 服务职责冻结 | PASS | Java控制面、Python执行面及唯一写入所有权已冻结 |
-| 6 | M1—M7 产品基线 | IN PROGRESS | P340已通过，下一步P341实现流程场景配置入库 |
+| 6 | M1—M7 产品基线 | IN PROGRESS | P341已通过，下一步P342实现模型、数据源和秘密管理 |
 | 7 | M8—M9 客户交付 | BLOCKED | 等待具体客户环境和验收输入 |
 
-P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P311已完成，下一步执行P312。
+P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/askdatademo-v1-v2-demo`，V2.0开发工作树位于`/workspaces/askdatademo`；P310—P341已完成，下一步执行P342。
 
 ## 11. 执行记录模板
 
@@ -756,14 +756,34 @@ P300—P303已完成，M0门禁通过。稳定演示工作树位于`/workspaces/
 | 遗留问题 | P342补齐真实Provider诊断和秘密轮换；客户实际资产同步、责任人和分级在M8对接 |
 | 批准 | 满足P340退出条件，可进入P341流程场景配置入库 |
 
+### P341执行记录
+
+| 字段 | 内容 |
+|---|---|
+| 任务ID | P341 |
+| 状态 | PASS |
+| 分支与提交 | `release/product-v2-test`；提交SHA以本记录所在提交为准 |
+| 日期与执行人 | 2026-08-12；Codex执行 |
+| 验证命令 | `JAVA_HOME=/tmp/askdata-jdk21 PATH=/tmp/askdata-jdk21/bin:$PATH ./platform-service/mvnw -f platform-service/pom.xml -q -Dtest=FlowManagementTests,LegacySeedImporterTests test`；Java全量`./platform-service/mvnw -f platform-service/pom.xml -q test` |
+| 证据 | Flyway V9新增意图、对话、七层、场景资产、快捷问题、驾驶舱、Fixture和话术规范化表；官方种子对账为8条意图规则、7层配置、3项参数规则、7个快捷问题、1个驾驶舱及3个角色授权、1个仅DEMO可用Fixture和1条缺参话术；Java总计16 tests、0 failures、0 errors |
+| 结论 | V2管理API从规范化表创建和查询场景并记录审计；当前发布版本写入新Session快照，发布指针切换后活动Session仍固定使用原版本，新Session使用新版本 |
+| 遗留问题 | Fixture运行时模式强制和Java/Python执行链使用发布快照在M5完成；客户实际场景、话术、模型和数据源在M8联调 |
+| 批准 | 满足P341退出条件，可进入P342模型、数据源和秘密管理 |
+
 ## 12. 下一步
 
-M0已经完成。当前执行链为：
+M0—M3已经完成，M4执行中。当前执行链为：
 
 ~~~text
-P313 建立兼容入口
+P342 模型、数据源和秘密管理
   ↓
-P320 冻结逻辑模型与客户可变项
+P343 配置兼容切换
+  ↓
+M5 七层集成与完整SQL安全
+  ↓
+M6 用户端和管理端闭环
+  ↓
+M7 发布、运维与产品化门禁
 ~~~
 
 后续V2.0开发不得修改稳定标签工作树；稳定缺陷按hotfix回流规则处理。

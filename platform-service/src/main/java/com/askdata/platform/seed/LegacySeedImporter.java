@@ -14,6 +14,7 @@ import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -183,17 +184,54 @@ public class LegacySeedImporter {
     }
 
     private void importFlow(JsonNode baseline) {
+        for (int layer = 1; layer <= 7; layer++) {
+            var code = "L" + layer;
+            if (count("select count(*) from flow_layer_config where layer_code=?", code) == 0) {
+                jdbc.update("insert into flow_layer_config(layer_code,layer_name,sequence_no,handler_code,provider_type,timeout_seconds,status) values (?,?,?,?,?,30,'ENABLED')",
+                        code, "七层-" + code, layer, "python:" + code.toLowerCase(), layer == 2 || layer == 7 ? "MODEL_OPTIONAL" : "DETERMINISTIC");
+            }
+        }
+        var parameters = Map.of("org", "机构", "date", "统计日期", "metric", "指标");
+        for (var entry : parameters.entrySet()) {
+            if (count("select count(*) from flow_parameter_rule where parameter_code=?", entry.getKey()) == 0) {
+                jdbc.update("insert into flow_parameter_rule(parameter_code,name,data_type,required_flag,missing_prompt,option_source,status) values (?,?, 'STRING',true,?,?, 'ENABLED')",
+                        entry.getKey(), entry.getValue(), "请补充" + entry.getValue(), "PUBLISHED_ASSET");
+            }
+        }
         for (var scenario : baseline.get("scenarios")) {
             var code = scenario.get("id").asText();
             var terminal = maxTerminalLayer(scenario);
+            var intentCode = "intent-" + code;
+            if (count("select count(*) from flow_intent_rule where code=?", intentCode) == 0) {
+                jdbc.update("insert into flow_intent_rule(code,name,intent_type,keyword_pattern,priority,terminal_layer,handler_code,status) values (?,?,?,?,100,?,?,'ENABLED')",
+                        intentCode, scenario.get("name").asText(), code.toUpperCase().replace('-', '_'), scenario.get("name").asText(), terminal, "scenario:" + code);
+            }
             if (count("select count(*) from flow_scenario where code=?", code) == 0) {
-                jdbc.update("insert into flow_scenario(code,name,terminal_layer,fallback_policy,sort_no,status) values (?,?,?,?,?,?)",
-                        code, scenario.get("name").asText(), terminal, "NONE", scenario.get("number").asInt(), "ENABLED");
+                jdbc.update("insert into flow_scenario(code,name,terminal_layer,fallback_policy,sort_no,status,intent_rule_id) values (?,?,?,?,?,?,?)",
+                        code, scenario.get("name").asText(), terminal, "NONE", scenario.get("number").asInt(), "ENABLED", id("select id from flow_intent_rule where code=?", intentCode));
+            } else {
+                jdbc.update("update flow_scenario set intent_rule_id=? where code=?", id("select id from flow_intent_rule where code=?", intentCode), code);
             }
             var scenarioId = id("select id from flow_scenario where code=?", code);
             if (terminal.equals("L7") && count("select count(*) from flow_scenario_sql where scenario_id=?", scenarioId) == 0) {
                 jdbc.update("insert into flow_scenario_sql(scenario_id,sql_template_id,sequence_no,purpose,required_flag) values (?,?,1,?,true)",
                         scenarioId, id("select id from flow_sql_template where code='official-loan-query'"), "官方基线查询");
+            }
+            if (terminal.equals("L7")) {
+                var sourceId = id("select id from meta_data_source where code='official-demo-source'");
+                var tableId = id("select id from meta_data_table where data_source_id=? and table_name=?", sourceId, baseline.at("/assets/table").asText());
+                for (var metric : List.of("loan_cur", "retail_cur", "corporate_cur")) {
+                    var metricId = id("select id from meta_metric where code=?", metric);
+                    if (count("select count(*) from flow_scenario_asset where scenario_id=? and table_id=? and metric_id=?", scenarioId, tableId, metricId) == 0) {
+                        jdbc.update("insert into flow_scenario_asset(scenario_id,data_source_id,table_id,metric_id,priority) values (?,?,?,?,100)", scenarioId, sourceId, tableId, metricId);
+                    }
+                }
+                for (var parameter : parameters.keySet()) {
+                    var parameterId = id("select id from flow_parameter_rule where parameter_code=?", parameter);
+                    if (count("select count(*) from flow_scenario_param where scenario_id=? and parameter_rule_id=?", scenarioId, parameterId) == 0) {
+                        jdbc.update("insert into flow_scenario_param(scenario_id,parameter_rule_id,required_override,sort_no) values (?,?,true,?)", scenarioId, parameterId, parameter.equals("org") ? 1 : parameter.equals("date") ? 2 : 3);
+                    }
+                }
             }
             for (var scenarioCase : scenario.get("cases")) {
                 var roleId = id("select id from iam_role where code=?", scenarioCase.get("role_id").asText());
@@ -214,6 +252,29 @@ public class LegacySeedImporter {
                     }
                 }
             }
+        }
+        var scenario1 = id("select id from flow_scenario where code='scenario-1'");
+        baseline.at("/assets/recommendations").properties().forEach(entry -> {
+            var roleId = id("select id from iam_role where code=?", entry.getKey());
+            int sort = 0;
+            for (var question : entry.getValue()) {
+                if (count("select count(*) from flow_quick_question where scenario_id=? and role_id=? and preset_question=?", scenario1, roleId, question.asText()) == 0) {
+                    jdbc.update("insert into flow_quick_question(scenario_id,role_id,button_name,preset_question,tag,sort_no,status) values (?,?,?,?,?,?, 'ENABLED')",
+                            scenario1, roleId, question.asText(), question.asText(), "official", sort++);
+                }
+            }
+        });
+        if (count("select count(*) from flow_dashboard where code='official-dashboard'") == 0) {
+            jdbc.update("insert into flow_dashboard(code,name,url,tag,status) values ('official-dashboard','经营驾驶舱',?,'official','ENABLED')", baseline.at("/assets/dashboard").asText());
+            var dashboardId = id("select id from flow_dashboard where code='official-dashboard'");
+            baseline.get("roles").forEach(role -> jdbc.update("insert into flow_dashboard_role(dashboard_id,role_id) values (?,?)", dashboardId, id("select id from iam_role where code=?", role.get("id").asText())));
+        }
+        if (count("select count(*) from flow_fixture where code='official-warehouse-fixture'") == 0) {
+            try { jdbc.update("insert into flow_fixture(code,fixture_json,allowed_modes_json,status) values ('official-warehouse-fixture',?,'[\"DEMO\"]','ENABLED')", mapper.writeValueAsString(baseline.get("warehouse_rows"))); }
+            catch (Exception exception) { throw new IllegalStateException(exception); }
+        }
+        if (count("select count(*) from flow_wording where code='waiting-input-default'") == 0) {
+            jdbc.update("insert into flow_wording(code,scene,language,content,status) values ('waiting-input-default','WAITING_INPUT','zh-CN','请补充缺失的机构、日期或指标。','ENABLED')");
         }
     }
 
