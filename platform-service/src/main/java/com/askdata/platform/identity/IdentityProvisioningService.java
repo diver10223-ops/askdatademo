@@ -1,5 +1,6 @@
 package com.askdata.platform.identity;
 
+import com.askdata.platform.audit.AuditLogService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +17,13 @@ import java.util.UUID;
 public class IdentityProvisioningService {
     private final JdbcTemplate jdbc;
     private final List<IdentityProviderAdapter> adapters;
+    private final AuditLogService audit;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public IdentityProvisioningService(JdbcTemplate jdbc, List<IdentityProviderAdapter> adapters) {
+    public IdentityProvisioningService(JdbcTemplate jdbc, List<IdentityProviderAdapter> adapters, AuditLogService audit) {
         this.jdbc = jdbc;
         this.adapters = adapters;
+        this.audit = audit;
     }
 
     @Transactional
@@ -56,6 +59,8 @@ public class IdentityProvisioningService {
                     userId, provider.id, assertion.subject(), assertion.username(), attributesHash(assertion), OffsetDateTime.now(), OffsetDateTime.now());
         }
         recordEvent(userId, provider.id, hash(assertion.subject()), "LOGIN", "SUCCEEDED", clientIp, userAgent);
+        audit.append(new AuditLogService.AuditEvent("auth-" + UUID.randomUUID(), userId, assertion.username(), "LOGIN",
+                "IDENTITY_PROVIDER", providerCode, null, "{\"result\":\"SUCCEEDED\"}", clientIp, userAgent, "SUCCEEDED", null));
         return new ProvisionedIdentity(userId, assertion.subject(), assertion.username(), assertion.displayName(), assertion.orgCode());
     }
 

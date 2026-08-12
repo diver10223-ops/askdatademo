@@ -38,3 +38,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO askdata_a
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO askdata_app;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO askdata_readonly;
 REVOKE CREATE ON SCHEMA public FROM askdata_app, askdata_readonly;
+
+-- Append-only facts: the application can insert and verify, but cannot rewrite or delete history.
+REVOKE UPDATE, DELETE ON audit_operation_log, audit_integrity_chain, audit_approval_action, iam_user_auth_event FROM askdata_app;
+GRANT SELECT, INSERT ON audit_operation_log, audit_integrity_chain, audit_approval_action, iam_user_auth_event TO askdata_app;
+REVOKE INSERT, UPDATE, DELETE ON audit_chain_head FROM askdata_app;
+GRANT SELECT, UPDATE ON audit_chain_head TO askdata_app;

@@ -48,7 +48,7 @@ class ApprovalReleaseWorkflowTests {
 
     private long publish(String releaseNo, String snapshot) {
         var release = releases.createDraft(releaseNo, releaseNo, snapshot, "test", applicant);
-        releases.markReviewing(release);
+        releases.markReviewing(release, applicant);
         var approval = approvals.submit("CONFIG_PUBLISH", "Publish", applicant, "CFG_RELEASE", release, List.of(businessApprover));
         assertThat(approvals.approve(approval, businessApprover, "ok", List.of(securityApprover)).status()).isEqualTo("PENDING");
         assertThat(approvals.approve(approval, securityApprover, "ok", List.of()).status()).isEqualTo("APPROVED");

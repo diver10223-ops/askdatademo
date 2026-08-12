@@ -1,5 +1,6 @@
 package com.askdata.platform.approval;
 
+import com.askdata.platform.audit.AuditLogService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,9 +12,11 @@ import java.util.UUID;
 @Service
 public class ApprovalService {
     private final JdbcTemplate jdbc;
+    private final AuditLogService audit;
 
-    public ApprovalService(JdbcTemplate jdbc) {
+    public ApprovalService(JdbcTemplate jdbc, AuditLogService audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     @Transactional
@@ -31,6 +34,7 @@ public class ApprovalService {
         var approvalId = jdbc.queryForObject("select id from audit_approval where approval_no=?", Long.class, approvalNo);
         firstStepApprovers.forEach(approver -> jdbc.update("insert into audit_approval_candidate(approval_id,step_no,approver_id,candidate_source,status) values (?,1,?,'SUBMITTED','PENDING')", approvalId, approver));
         jdbc.update("insert into audit_approval_action(approval_id,step_no,action,operator_id,opinion,from_status,to_status) values (?,1,'SUBMIT',?,'提交审批','DRAFT','PENDING')", approvalId, applicantId);
+        audit.append(event(applicantId, "SUBMIT_APPROVAL", approvalId, "DRAFT", "PENDING"));
         return approvalId;
     }
 
@@ -61,6 +65,7 @@ public class ApprovalService {
         }
         jdbc.update("insert into audit_approval_action(approval_id,step_no,action,operator_id,opinion,from_status,to_status) values (?,?, 'APPROVE',?,?, 'PENDING',?)",
                 approvalId, approval.stepNo, operatorId, opinion, toStatus);
+        audit.append(event(operatorId, "APPROVE", approvalId, "PENDING", toStatus));
         return new ApprovalResult(approvalId, toStatus, stepComplete);
     }
 
@@ -73,6 +78,7 @@ public class ApprovalService {
         jdbc.update("update audit_approval_candidate set status=case when approver_id=? then 'REJECTED' else 'SKIPPED' end where approval_id=? and step_no=? and status='PENDING'", operatorId, approvalId, approval.stepNo);
         jdbc.update("update audit_approval set current_status='REJECTED',completed_at=current_timestamp where id=?", approvalId);
         jdbc.update("insert into audit_approval_action(approval_id,step_no,action,operator_id,opinion,from_status,to_status) values (?,?,'REJECT',?,?,'PENDING','REJECTED')", approvalId, approval.stepNo, operatorId, opinion);
+        audit.append(event(operatorId, "REJECT", approvalId, "PENDING", "REJECTED"));
         return new ApprovalResult(approvalId, "REJECTED", true);
     }
 
@@ -90,5 +96,9 @@ public class ApprovalService {
     private record Workflow(long id, int version) {}
     private record Approval(long workflowId, int stepNo, String status) {}
     private record Step(int stepNo, String mode, int minApprovals, Integer timeoutHours) {}
+    private AuditLogService.AuditEvent event(long actorId, String action, long approvalId, String from, String to) {
+        return new AuditLogService.AuditEvent("approval-" + UUID.randomUUID(), actorId, "user-" + actorId, action,
+                "APPROVAL", String.valueOf(approvalId), "{\"status\":\"" + from + "\"}", "{\"status\":\"" + to + "\"}", null, null, "SUCCEEDED", null);
+    }
     public record ApprovalResult(long approvalId, String status, boolean stepCompleted) {}
 }
