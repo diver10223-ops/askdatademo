@@ -92,7 +92,7 @@ backup_id="$(python -c 'import json,os; print(json.load(open(os.environ["ASKDATA
 start_platform "$pre_url" true "$drill_root/forward.log"
 wait_for_inventory "$pre_url" "$drill_root/forward.inventory" 4 "$drill_root/forward.log"
 stop_platform
-grep -q '^flyway.version=16$' "$drill_root/forward.inventory"
+grep -q '^flyway.version=17$' "$drill_root/forward.inventory"
 grep -q '^role.count=3$' "$drill_root/forward.inventory"
 grep -q '^scenario.count=8$' "$drill_root/forward.inventory"
 grep -q '^scenario.case.count=24$' "$drill_root/forward.inventory"
@@ -126,4 +126,4 @@ stop_platform
 cmp "$drill_root/forward.inventory" "$drill_root/reforward.inventory"
 cmp "$jar_file" "$drill_root/restored-release.jar"
 cmp "$drill_root/secret.bundle" "$drill_root/restored-secret.bundle"
-echo "MIGRATION_DRILL_PASS flyway=16 roles=3 scenarios=8 cases=24 turns=33 legacy_resources=5 backup=$backup_id"
+echo "MIGRATION_DRILL_PASS flyway=17 roles=3 scenarios=8 cases=24 turns=33 legacy_resources=5 backup=$backup_id"
