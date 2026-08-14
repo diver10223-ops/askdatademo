@@ -101,7 +101,7 @@ def test_running_request_reaches_cancelled_final_state_before_l7():
 def test_internal_session_identity_and_idempotency_reject_context_contamination():
     restore_baseline(); request_id = str(uuid.uuid4()); session_id = str(uuid.uuid4()); key = f"p353-{uuid.uuid4()}"
     payload = {"requestId": request_id, "sessionId": session_id, "parentRequestId": None, "subjectId": "p353-user", "roleIds": ["admin"], "question": "2026年3月全行贷款投放是多少？", "scenarioId": "scenario-1", "executionMode": "DEMO", "permissionSnapshot": {"orgs": ["全行"], "metrics": ["贷款投放"]}, "configVersionId": "official-v1", "providerProfileId": None, "timeoutMs": 30000}
-    headers = {"X-Service-Token": "askdata-local-service-token", "X-Trace-Id": "trace-p353", "Idempotency-Key": key}
+    headers = {"X-Service-Token": "askdata-test-service-token-32-bytes-minimum", "X-Trace-Id": "trace-p353", "Idempotency-Key": key}
     with TestClient(app) as client:
         assert client.post("/internal/v1/executions", json=payload, headers=headers).status_code == 202
         changed = {**payload, "requestId": str(uuid.uuid4()), "permissionSnapshot": {"orgs": ["上海分行"], "metrics": ["贷款投放"]}}

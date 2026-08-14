@@ -17,7 +17,7 @@ trap cleanup EXIT
 command -v java >/dev/null 2>&1 || { echo "Java 21 is required" >&2; exit 2; }
 python_bin="$repo_root/.venv/bin/python"
 "$repo_root/platform-service/mvnw" -f "$repo_root/platform-service/pom.xml" -q -DskipTests package
-jar_file="$repo_root/platform-service/target/platform-service-2.0.0-SNAPSHOT.jar"
+jar_file="$repo_root/platform-service/target/platform-service-2.0.0.jar"
 h2_jar="$(find "$HOME/.m2/repository/com/h2database/h2" -name 'h2-*.jar' -type f | sort -V | tail -1)"
 classpath="$repo_root/platform-service/target/classes:$h2_jar"
 
@@ -36,6 +36,8 @@ start_app() {
   ASKDATA_MIGRATION_DB_URL="jdbc:h2:file:$database;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE" \
   ASKDATA_PLATFORM_DB_USERNAME=sa ASKDATA_PLATFORM_DB_PASSWORD=capacity \
   ASKDATA_MIGRATION_DB_USERNAME=sa ASKDATA_MIGRATION_DB_PASSWORD=capacity \
+  ASKDATA_INTERNAL_SERVICE_TOKEN=askdata-capacity-isolated-test-token \
+  ASKDATA_PLATFORM_API_TOKEN=askdata-capacity-platform-api-token-32-bytes-minimum \
   ASKDATA_PLATFORM_PORT="$port" ASKDATA_SEED_ENABLED=true ASKDATA_SEED_DIRECTORY="$repo_root/fixtures" \
   ASKDATA_EXECUTION_BASE_URL="http://127.0.0.1:$stub_port" ASKDATA_EXECUTION_MAX_CONCURRENCY="$limit" \
   ASKDATA_EXECUTION_PER_USER_CONCURRENCY=2 ASKDATA_EXECUTION_QUEUE_CAPACITY=50 ASKDATA_EXECUTION_MAX_QUEUE_WAIT_MS=50 \

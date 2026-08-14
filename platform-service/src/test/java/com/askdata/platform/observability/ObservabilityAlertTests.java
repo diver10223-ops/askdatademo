@@ -51,7 +51,7 @@ class ObservabilityAlertTests {
         assertThat(meters.find("askdata.provider.failures").tag("kind","MODEL").gauge()).isNotNull();
         assertThat(meters.find("askdata.sql.failures").gauge()).isNotNull();
 
-        var prometheus=RestClient.create("http://127.0.0.1:"+port).get().uri("/actuator/prometheus").retrieve().body(String.class);
+        var prometheus=RestClient.builder().baseUrl("http://127.0.0.1:"+port).defaultHeader("Authorization","Bearer askdata-test-platform-api-token-32-bytes-minimum").build().get().uri("/actuator/prometheus").retrieve().body(String.class);
         assertThat(prometheus).contains("askdata_execution_requests", "status=\"FAILED\"");
         assertThat(prometheus).doesNotContain("top-secret-question", "secret_business_column", "should-never-leak");
     }

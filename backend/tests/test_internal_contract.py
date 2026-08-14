@@ -48,15 +48,23 @@ def test_internal_health_requires_service_authentication():
         assert client.get("/internal/v1/health").status_code == 401
         response = client.get(
             "/internal/v1/health",
-            headers={"X-Service-Token": "askdata-local-service-token"},
+            headers={"X-Service-Token": "askdata-test-service-token-32-bytes-minimum"},
         )
         assert response.status_code == 200
         assert response.json() == {"status": "ok", "version": "1.0.0"}
 
 
+def test_internal_api_fails_closed_when_service_token_is_not_configured(monkeypatch):
+    monkeypatch.delenv("ASKDATA_INTERNAL_SERVICE_TOKEN")
+    with TestClient(app) as client:
+        response = client.get("/internal/v1/health", headers={"X-Service-Token": "any-value"})
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "CONFIGURATION_UNAVAILABLE"
+
+
 def test_real_seven_layer_execution_is_idempotent_and_resumable():
     headers = {
-        "X-Service-Token": "askdata-local-service-token",
+        "X-Service-Token": "askdata-test-service-token-32-bytes-minimum",
         "X-Trace-Id": "trace-p313",
         "Idempotency-Key": "idem-p313-0001",
     }
@@ -91,7 +99,7 @@ def test_poc_without_enabled_provider_fails_without_fixture_fallback():
     payload["requestId"] = "c0a80101-0000-4000-8000-000000000011"
     payload["sessionId"] = "c0a80101-0000-4000-8000-000000000012"
     payload["executionMode"] = "POC"
-    headers = {"X-Service-Token": "askdata-local-service-token", "X-Trace-Id": "trace-p350-poc", "Idempotency-Key": "idem-p350-poc-01"}
+    headers = {"X-Service-Token": "askdata-test-service-token-32-bytes-minimum", "X-Trace-Id": "trace-p350-poc", "Idempotency-Key": "idem-p350-poc-01"}
     with TestClient(app) as client:
         assert client.post("/internal/v1/executions", json=payload, headers=headers).status_code == 202
         for _ in range(50):

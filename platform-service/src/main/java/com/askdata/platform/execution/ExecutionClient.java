@@ -15,7 +15,10 @@ public class ExecutionClient {
     private final String serviceToken;
 
     public ExecutionClient(@Value("${askdata.execution.base-url:http://127.0.0.1:8000}") String baseUrl,
-                           @Value("${askdata.execution.service-token:askdata-local-service-token}") String serviceToken) {
+                           @Value("${askdata.execution.service-token}") String serviceToken) {
+        if (serviceToken.getBytes(java.nio.charset.StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("ASKDATA_INTERNAL_SERVICE_TOKEN must contain at least 32 bytes");
+        }
         this.client = RestClient.builder()
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .baseUrl(baseUrl)

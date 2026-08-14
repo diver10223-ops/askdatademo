@@ -19,7 +19,7 @@ class FlowManagementTests {
 
     @Test
     void scenarioApiUsesNormalizedTableAndPublishedReleaseOnlyAffectsNewSessions(){
-        var client=RestClient.create("http://127.0.0.1:"+port);
+        var client=RestClient.builder().baseUrl("http://127.0.0.1:"+port).defaultHeader("Authorization","Bearer askdata-test-platform-api-token-32-bytes-minimum").build();
         var created=client.post().uri("/api/v2/admin/flows/scenarios").contentType(MediaType.APPLICATION_JSON)
                 .body("{\"code\":\"profit-query\",\"name\":\"利润查询\",\"description\":\"测试\",\"terminalLayer\":\"L7\",\"fallbackPolicy\":\"NONE\",\"sortNo\":10}").retrieve().body(String.class);
         assertThat(created).contains("profit-query","DRAFT");

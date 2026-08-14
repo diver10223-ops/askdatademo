@@ -20,7 +20,7 @@ class AssetManagementApiTests {
 
     @Test
     void metricApiWritesAndReadsNormalizedTable() {
-        var client = RestClient.create("http://127.0.0.1:" + port);
+        var client = RestClient.builder().baseUrl("http://127.0.0.1:" + port).defaultHeader("Authorization","Bearer askdata-test-platform-api-token-32-bytes-minimum").build();
         var body = "{\"code\":\"net_profit\",\"name\":\"净利润\",\"businessDefinition\":\"税后净利润\",\"calculationExpression\":\"net_profit\",\"unit\":\"元\",\"aggregationType\":\"SUM\",\"classificationLevel\":\"SENSITIVE\",\"detailAllowed\":false}";
         var created = client.post().uri("/api/v2/admin/assets/metrics").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(String.class);
         assertThat(created).contains("net_profit", "DRAFT", "SENSITIVE");

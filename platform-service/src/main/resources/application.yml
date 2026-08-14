@@ -9,16 +9,16 @@ spring:
     name: askdata-platform
   datasource:
     url: ${ASKDATA_PLATFORM_DB_URL:jdbc:h2:file:./data/platform-v2;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
-    username: ${ASKDATA_PLATFORM_DB_USERNAME:askdata}
-    password: ${ASKDATA_PLATFORM_DB_PASSWORD:askdata-local-only}
+    username: ${ASKDATA_PLATFORM_DB_USERNAME}
+    password: ${ASKDATA_PLATFORM_DB_PASSWORD}
     hikari:
       maximum-pool-size: ${ASKDATA_PLATFORM_DB_POOL_MAX:30}
   flyway:
     enabled: true
     validate-migration-naming: true
     url: ${ASKDATA_MIGRATION_DB_URL:${ASKDATA_PLATFORM_DB_URL:jdbc:h2:file:./data/platform-v2;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}}
-    user: ${ASKDATA_MIGRATION_DB_USERNAME:${ASKDATA_PLATFORM_DB_USERNAME:askdata}}
-    password: ${ASKDATA_MIGRATION_DB_PASSWORD:${ASKDATA_PLATFORM_DB_PASSWORD:askdata-local-only}}
+    user: ${ASKDATA_MIGRATION_DB_USERNAME}
+    password: ${ASKDATA_MIGRATION_DB_PASSWORD}
   h2:
     console:
       enabled: false
@@ -59,15 +59,17 @@ management:
 info:
   app:
     name: AskData Platform
-    version: 2.0.0-SNAPSHOT
+    version: 2.0.0
 
 askdata:
+  security:
+    api-token: ${ASKDATA_PLATFORM_API_TOKEN}
   seed:
     enabled: ${ASKDATA_SEED_ENABLED:false}
     directory: ${ASKDATA_SEED_DIRECTORY:./fixtures}
   execution:
     base-url: ${ASKDATA_EXECUTION_BASE_URL:http://127.0.0.1:8000}
-    service-token: ${ASKDATA_INTERNAL_SERVICE_TOKEN:askdata-local-service-token}
+    service-token: ${ASKDATA_INTERNAL_SERVICE_TOKEN}
     reconcile-delay-ms: ${ASKDATA_EXECUTION_RECONCILE_DELAY_MS:1000}
     max-concurrency: ${ASKDATA_EXECUTION_MAX_CONCURRENCY:30}
     per-user-concurrency: ${ASKDATA_EXECUTION_PER_USER_CONCURRENCY:2}

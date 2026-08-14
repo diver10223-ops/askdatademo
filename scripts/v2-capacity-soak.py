@@ -48,7 +48,7 @@ async def lifecycle(args, session: str, sequence: int) -> tuple[str, float, floa
     }
     status, result, submit_seconds = await http_json(
         args.host, args.port, "POST", "/api/v2/execution/queries", payload,
-        {"Idempotency-Key": trace, "X-Trace-Id": trace},
+        {"Idempotency-Key": trace, "X-Trace-Id": trace, "Authorization": f"Bearer {args.api_token}"},
     )
     if status != 202:
         return f"HTTP_{status}", submit_seconds, submit_seconds
@@ -57,7 +57,8 @@ async def lifecycle(args, session: str, sequence: int) -> tuple[str, float, floa
     while time.perf_counter() - began < args.terminal_timeout:
         await asyncio.sleep(args.poll_interval)
         detail_status, detail, _ = await http_json(
-            args.host, args.port, "GET", f"/api/v2/execution/queries/{request_id}", None, {"X-Trace-Id": trace},
+            args.host, args.port, "GET", f"/api/v2/execution/queries/{request_id}", None,
+            {"X-Trace-Id": trace, "Authorization": f"Bearer {args.api_token}"},
         )
         if detail_status != 200:
             return f"DETAIL_HTTP_{detail_status}", submit_seconds, time.perf_counter() - began
@@ -82,6 +83,8 @@ async def run(args) -> None:
     tasks: set[asyncio.Task] = set()
     all_tasks: list[asyncio.Task] = []
     maxima = {"rss_kb": 0, "fds": 0, "threads": 0, "inflight": 0}
+    initial = resources(args.server_pid) if args.server_pid else (0, 0, 0)
+    final = initial
     sequence = 0
     next_report = began + args.report_interval
     while time.monotonic() - began < args.duration:
@@ -96,6 +99,7 @@ async def run(args) -> None:
         maxima["inflight"] = max(maxima["inflight"], len(tasks))
         if args.server_pid:
             rss, fds, threads = resources(args.server_pid)
+            final = (rss, fds, threads)
             maxima["rss_kb"] = max(maxima["rss_kb"], rss)
             maxima["fds"] = max(maxima["fds"], fds)
             maxima["threads"] = max(maxima["threads"], threads)
@@ -118,6 +122,7 @@ async def run(args) -> None:
         f"failure_rate={failure_rate:.6f}", f"submit_p95_seconds={percentile(submit,.95):.3f}",
         f"submit_p99_seconds={percentile(submit,.99):.3f}", f"terminal_p95_seconds={percentile(terminal,.95):.3f}",
         f"terminal_p99_seconds={percentile(terminal,.99):.3f}", f"max_inflight={maxima['inflight']}",
+        f"initial_rss_kb={initial[0]}", f"final_rss_kb={final[0]}", f"rss_growth_kb={final[0]-initial[0]}",
         f"max_rss_kb={maxima['rss_kb']}", f"max_fds={maxima['fds']}", f"max_platform_threads={maxima['threads']}",
     ]), flush=True)
     assert elapsed >= args.duration, (elapsed, args.duration)
@@ -126,6 +131,7 @@ async def run(args) -> None:
     assert percentile(submit, .99) <= args.max_submit_p99, percentile(submit, .99)
     assert percentile(terminal, .95) <= args.max_terminal_p95, percentile(terminal, .95)
     assert percentile(terminal, .99) <= args.max_terminal_p99, percentile(terminal, .99)
+    assert final[0] - initial[0] <= args.max_rss_growth_kb, (initial[0], final[0], args.max_rss_growth_kb)
     print(f"CAPACITY_SOAK_PASS label={args.label}", flush=True)
 
 
@@ -138,6 +144,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--duration", type=float, required=True)
     value.add_argument("--rps", type=float, required=True)
     value.add_argument("--server-pid", type=int)
+    value.add_argument("--api-token", default="askdata-capacity-platform-api-token-32-bytes-minimum")
     value.add_argument("--poll-interval", type=float, default=.25)
     value.add_argument("--terminal-timeout", type=float, default=30)
     value.add_argument("--report-interval", type=float, default=60)
@@ -145,6 +152,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--max-submit-p99", type=float, default=1)
     value.add_argument("--max-terminal-p95", type=float, default=15)
     value.add_argument("--max-terminal-p99", type=float, default=30)
+    value.add_argument("--max-rss-growth-kb", type=int, default=524288)
     return value
 
 

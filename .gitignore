@@ -16,5 +16,6 @@ access/
 preprocessed_configs/
 backups/*.zip
 .codex/
+artifacts/
 docs/reference-screenshots/
 .pytest_cache/

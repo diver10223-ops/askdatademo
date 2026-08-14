@@ -26,7 +26,7 @@ class ProviderManagementTests {
 
     @Test
     void managementApiNeverEchoesExternalSecretReference(){
-        var response=RestClient.create("http://127.0.0.1:"+port).post().uri("/api/v2/admin/providers/secrets")
+        var response=RestClient.builder().baseUrl("http://127.0.0.1:"+port).defaultHeader("Authorization","Bearer askdata-test-platform-api-token-32-bytes-minimum").build().post().uri("/api/v2/admin/providers/secrets")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("{\"code\":\"api-key\",\"secretType\":\"MODEL_API_KEY\",\"providerType\":\"TEST\",\"externalReference\":\"test-ref://valid/api-secret\",\"keyVersion\":\"v1\"}")
                 .retrieve().body(String.class);

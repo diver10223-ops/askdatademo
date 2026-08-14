@@ -12,10 +12,9 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+SERVICE_TOKEN = "askdata-performance-isolated-test-token"
+os.environ["ASKDATA_INTERNAL_SERVICE_TOKEN"] = SERVICE_TOKEN
 from app.main import app
-
-
-SERVICE_TOKEN = "askdata-local-service-token"
 
 
 def payload(sequence: int) -> dict:

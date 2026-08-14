@@ -20,7 +20,7 @@ class PlatformServiceApplicationTests {
 	void healthReportsProductAndSchemaVersion() {
 		var body = RestClient.create("http://127.0.0.1:" + port)
 				.get().uri("/api/v2/health").retrieve().body(String.class);
-		assertThat(body).contains("\"status\":\"ok\"").contains("2.0.0-SNAPSHOT");
+		assertThat(body).contains("\"status\":\"ok\"").contains("2.0.0");
 	}
 
 	@Test

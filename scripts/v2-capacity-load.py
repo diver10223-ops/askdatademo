@@ -45,7 +45,8 @@ def percentile(values: list[float], fraction: float) -> float:
     return sorted(values)[max(0, math.ceil(len(values) * fraction) - 1)]
 
 
-async def submit(host: str, port: int, session: str, sequence: int, start: asyncio.Event, ready: asyncio.Queue):
+async def submit(args, session: str, sequence: int, start: asyncio.Event, ready: asyncio.Queue):
+    host, port = args.host, args.port
     reader, writer = await asyncio.open_connection(host, port)
     await ready.put(sequence)
     await start.wait()
@@ -57,6 +58,7 @@ async def submit(host: str, port: int, session: str, sequence: int, start: async
     request = (
         f"POST /api/v2/execution/queries HTTP/1.1\r\nHost: {host}:{port}\r\n"
         f"Content-Type: application/json\r\nContent-Length: {len(payload)}\r\n"
+        f"Authorization: Bearer {args.api_token}\r\n"
         f"Idempotency-Key: capacity-{sequence:06d}\r\nX-Trace-Id: capacity-{sequence:06d}\r\n"
         "Connection: close\r\n\r\n"
     ).encode() + payload
@@ -74,7 +76,7 @@ async def burst(args) -> None:
         raise SystemExit("not enough capacity sessions")
     start = asyncio.Event()
     ready: asyncio.Queue = asyncio.Queue()
-    tasks = [asyncio.create_task(submit(args.host, args.port, sessions[i], i, start, ready)) for i in range(args.requests)]
+    tasks = [asyncio.create_task(submit(args, sessions[i], i, start, ready)) for i in range(args.requests)]
     for _ in range(args.requests): await asyncio.wait_for(ready.get(), 30)
     began = time.perf_counter(); start.set(); results = await asyncio.gather(*tasks); total = time.perf_counter() - began
     statuses = [item[0] for item in results]
@@ -107,7 +109,8 @@ async def sse_connection(args, sequence: int, start: asyncio.Event, ready: async
     reader, writer = await asyncio.open_connection(args.host, args.port)
     request = (
         f"GET /api/v2/execution/queries/{args.request_id}/events HTTP/1.1\r\n"
-        f"Host: {args.host}:{args.port}\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n"
+        f"Host: {args.host}:{args.port}\r\nAccept: text/event-stream\r\n"
+        f"Authorization: Bearer {args.api_token}\r\nConnection: close\r\n\r\n"
     ).encode()
     writer.write(request); await writer.drain()
     status_line = await asyncio.wait_for(reader.readline(), args.connect_timeout)
@@ -195,6 +198,7 @@ def parser() -> argparse.ArgumentParser:
     burst_parser.add_argument("--sessions", required=True); burst_parser.add_argument("--requests", type=int, required=True)
     burst_parser.add_argument("--expected-accepted", type=int, required=True); burst_parser.add_argument("--accepted-output")
     burst_parser.add_argument("--max-p99-seconds", type=float, default=1); burst_parser.add_argument("--min-qps", type=float, default=0)
+    burst_parser.add_argument("--api-token", default="askdata-capacity-platform-api-token-32-bytes-minimum")
     sse_parser = sub.add_parser("sse")
     sse_parser.add_argument("--host", default="127.0.0.1"); sse_parser.add_argument("--port", type=int, required=True)
     sse_parser.add_argument("--request-id", required=True); sse_parser.add_argument("--connections", type=int, default=1300)
@@ -203,6 +207,7 @@ def parser() -> argparse.ArgumentParser:
     sse_parser.add_argument("--ramp-seconds", type=float, default=20)
     sse_parser.add_argument("--server-pid", type=int)
     sse_parser.add_argument("--debug", action="store_true")
+    sse_parser.add_argument("--api-token", default="askdata-capacity-platform-api-token-32-bytes-minimum")
     return root
 
 

@@ -29,12 +29,12 @@ class DatabaseRecoveryToolTests {
             connection.createStatement().executeUpdate("insert into ai_secret_ref(code,secret_type,provider_type,external_ref,fingerprint,status) values ('recovery-ref','API_KEY','TEST','vault://recovery/ref','"+"d".repeat(64)+"','ACTIVE')");
         }
         var backup=temporary.resolve("database.zip");var before=temporary.resolve("before.properties");var after=temporary.resolve("after.properties");
-        DatabaseRecoveryTool.backupH2(sourceUrl,user,"",backup);
-        DatabaseRecoveryTool.inventory(sourceUrl,user,"",before,"h2");
+        DatabaseRecoveryTool.backupH2(sourceUrl,user,"askdata-test-database-password",backup);
+        DatabaseRecoveryTool.inventory(sourceUrl,user,"askdata-test-database-password",before,"h2");
         var targetUrl="jdbc:h2:mem:recovery-target;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
         DatabaseRecoveryTool.restoreH2(targetUrl,"sa","",backup);
         DatabaseRecoveryTool.inventory(targetUrl,"sa","",after,"h2");
-        assertThat(Files.readString(after)).isEqualTo(Files.readString(before)).contains("flyway.version=15","release.count=1","secret.reference.count=1");
+        assertThat(Files.readString(after)).isEqualTo(Files.readString(before)).contains("flyway.version=16","release.count=1","secret.reference.count=1");
         assertThatThrownBy(()->DatabaseRecoveryTool.restoreH2(targetUrl,"sa","",backup))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("目标不是空库");
     }

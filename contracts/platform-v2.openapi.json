@@ -1,0 +1,56 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AskData Product V2 Platform API",
+    "version": "2.0.0",
+    "description": "Environment-neutral Java control-plane API. Customer authentication and gateway policies are bound in M8."
+  },
+  "servers": [{"url": "/"}],
+  "security": [{"bearerAuth": []}],
+  "paths": {
+    "/api/v2/health": {"get": {"operationId": "platformHealth", "security": [], "responses": {"200": {"description": "Platform and schema health", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Health"}}}}}}},
+    "/api/v2/execution/health": {"get": {"operationId": "executionHealth", "responses": {"200": {"description": "Execution-plane connectivity"}}}},
+    "/api/v2/execution/queries": {"post": {"operationId": "submitQuery", "parameters": [{"$ref": "#/components/parameters/IdempotencyKey"}, {"$ref": "#/components/parameters/TraceId"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/QueryCommand"}}}}, "responses": {"202": {"description": "Accepted"}, "429": {"$ref": "#/components/responses/Overloaded"}, "503": {"$ref": "#/components/responses/Overloaded"}}}},
+    "/api/v2/execution/queries/{requestId}": {"get": {"operationId": "queryDetail", "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"$ref": "#/components/parameters/TraceId"}], "responses": {"200": {"description": "Persisted request and execution facts"}, "404": {"$ref": "#/components/responses/Error"}}}},
+    "/api/v2/execution/queries/{requestId}/cancel": {"post": {"operationId": "cancelQuery", "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"$ref": "#/components/parameters/TraceId"}, {"$ref": "#/components/parameters/IdempotencyKey"}], "responses": {"202": {"description": "Cancellation accepted"}, "404": {"$ref": "#/components/responses/Error"}}}},
+    "/api/v2/execution/queries/{requestId}/events": {"get": {"operationId": "queryEvents", "parameters": [{"$ref": "#/components/parameters/RequestId"}, {"name": "Last-Event-ID", "in": "header", "schema": {"type": "integer", "minimum": 0}}], "responses": {"200": {"description": "Resumable server-sent event stream", "content": {"text/event-stream": {"schema": {"type": "string"}}}}, "404": {"$ref": "#/components/responses/Error"}}}},
+    "/api/v2/admin/assets/metrics": {"get": {"operationId": "listMetrics", "responses": {"200": {"description": "Metric list"}}}, "post": {"operationId": "createMetric", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Metric created"}}}},
+    "/api/v2/admin/flows/scenarios": {"get": {"operationId": "listScenarios", "responses": {"200": {"description": "Scenario list"}}}, "post": {"operationId": "createScenario", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Scenario created"}}}},
+    "/api/v2/admin/providers/secrets": {"post": {"operationId": "createSecretReference", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Secret reference created; secret value is never accepted"}}}},
+    "/api/v2/admin/providers/secrets/{code}": {"get": {"operationId": "getSecretReference", "parameters": [{"$ref": "#/components/parameters/Code"}], "responses": {"200": {"description": "Non-sensitive secret metadata"}}}},
+    "/api/v2/admin/providers/secrets/{code}/rotate": {"post": {"operationId": "rotateSecretReference", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"200": {"description": "Reference rotated and dependants disabled"}}}},
+    "/api/v2/admin/providers/secrets/{code}/revoke": {"post": {"operationId": "revokeSecretReference", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Reference revoked and dependants disabled"}}}},
+    "/api/v2/admin/providers/models": {"post": {"operationId": "createModelProfile", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Model profile created"}}}},
+    "/api/v2/admin/providers/models/{code}/diagnose": {"post": {"operationId": "diagnoseModel", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Diagnostic result"}}}},
+    "/api/v2/admin/providers/models/{code}/enable": {"post": {"operationId": "enableModel", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Enabled after successful current-version diagnostic"}}}},
+    "/api/v2/admin/providers/data-sources": {"post": {"operationId": "createDataSource", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Data source created"}}}},
+    "/api/v2/admin/providers/data-sources/{code}/diagnose": {"post": {"operationId": "diagnoseDataSource", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Diagnostic result"}}}},
+    "/api/v2/admin/providers/data-sources/{code}/enable": {"post": {"operationId": "enableDataSource", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Enabled after successful current-version diagnostic"}}}},
+    "/api/v2/admin/providers/runtime-profiles": {"post": {"operationId": "createRuntimeProfile", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "requestBody": {"$ref": "#/components/requestBodies/JsonCommand"}, "responses": {"201": {"description": "Runtime profile created"}}}},
+    "/api/v2/admin/providers/runtime-profiles/{code}/enable": {"post": {"operationId": "enableRuntimeProfile", "parameters": [{"$ref": "#/components/parameters/Code"}, {"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Runtime profile enabled"}}}},
+    "/api/v2/admin/configuration-source": {"get": {"operationId": "configurationSource", "responses": {"200": {"description": "Database cutover state"}}}},
+    "/api/v2/admin/configuration-source/disable-legacy-read": {"post": {"operationId": "disableLegacyRead", "parameters": [{"$ref": "#/components/parameters/ActorId"}], "responses": {"200": {"description": "Legacy read disabled idempotently"}}}},
+    "/api/v2/admin/observability/summary": {"get": {"operationId": "observabilitySummary", "responses": {"200": {"description": "Operational summary without business payloads"}}}},
+    "/api/v2/admin/observability/alerts": {"get": {"operationId": "observabilityAlerts", "responses": {"200": {"description": "Alert list"}}}}
+  },
+  "components": {
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Environment-neutral baseline token; replace with the approved customer identity adapter in M8."}},
+    "parameters": {
+      "RequestId": {"name": "requestId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}},
+      "Code": {"name": "code", "in": "path", "required": true, "schema": {"type": "string"}},
+      "ActorId": {"name": "X-Actor-Id", "in": "header", "schema": {"type": "integer", "format": "int64"}},
+      "TraceId": {"name": "X-Trace-Id", "in": "header", "schema": {"type": "string"}},
+      "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": true, "schema": {"type": "string", "minLength": 8}}
+    },
+    "requestBodies": {"JsonCommand": {"required": true, "content": {"application/json": {"schema": {"type": "object", "description": "Typed command fields are validated by the corresponding V2 controller."}}}}},
+    "schemas": {
+      "Health": {"type": "object", "required": ["status", "version", "schemaVersion"], "properties": {"status": {"const": "ok"}, "version": {"type": "string"}, "schemaVersion": {"type": "string"}}},
+      "QueryCommand": {"type": "object", "additionalProperties": false, "required": ["sessionId", "question"], "properties": {"sessionId": {"type": "string", "format": "uuid"}, "parentRequestId": {"type": ["string", "null"], "format": "uuid"}, "question": {"type": "string", "minLength": 1, "maxLength": 4000}, "scenarioId": {"type": ["string", "null"]}, "timeoutMs": {"type": "integer", "minimum": 1000, "maximum": 300000}}},
+      "ApiError": {"type": "object", "required": ["code", "message", "timestamp"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "traceId": {"type": ["string", "null"]}, "timestamp": {"type": "string", "format": "date-time"}}}
+    },
+    "responses": {
+      "Error": {"description": "Structured error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}},
+      "Overloaded": {"description": "Admission rejected or timed out", "headers": {"Retry-After": {"schema": {"type": "integer", "const": 1}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}}
+    }
+  }
+}

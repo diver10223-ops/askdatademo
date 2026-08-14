@@ -44,7 +44,9 @@ class ExecutionCommand(BaseModel):
 
 
 def require_service_token(x_service_token: str | None = Header(default=None)) -> None:
-    configured = os.getenv("ASKDATA_INTERNAL_SERVICE_TOKEN", "askdata-local-service-token")
+    configured = os.getenv("ASKDATA_INTERNAL_SERVICE_TOKEN")
+    if not configured or len(configured.encode()) < 32:
+        raise HTTPException(status_code=503, detail={"code": "CONFIGURATION_UNAVAILABLE", "message": "内部服务令牌未配置或长度不足"})
     if not x_service_token or not hmac.compare_digest(x_service_token, configured):
         raise HTTPException(status_code=401, detail={"code": "UNAUTHENTICATED", "message": "内部服务鉴权失败"})
 
