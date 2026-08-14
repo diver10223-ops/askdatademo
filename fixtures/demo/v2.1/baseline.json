@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "2.1",
+  "dataVersion": "demo-v2.1.0",
+  "classification": "SYNTHETIC_DEMO_ONLY",
+  "period": {"current": "2026Q1", "previous": "2025Q1"},
+  "organizations": [
+    {"id": "HQ", "name": "总行/全行汇总"},
+    {"id": "BJ", "name": "北京分行"},
+    {"id": "SH", "name": "上海分行"},
+    {"id": "OTHER", "name": "其他机构汇总"}
+  ],
+  "metrics": {
+    "loan_issue_amt": {"unit": "亿元", "aggregation": "SUM", "critical": true},
+    "deposit_balance": {"unit": "亿元", "aggregation": "PERIOD_END", "critical": true},
+    "npl_ratio": {"unit": "%", "aggregation": "BALANCE_WEIGHTED", "critical": true},
+    "fee_income": {"unit": "亿元", "aggregation": "SUM", "critical": false},
+    "active_customer_count": {"unit": "户", "aggregation": "COUNT_DISTINCT", "critical": false},
+    "retail_loan_issue_amt": {"unit": "亿元", "aggregation": "SUM", "critical": true}
+  },
+  "quarterlyFacts": [
+    {"org":"HQ","metric":"loan_issue_amt","current":1253.30,"previous":1293.70},
+    {"org":"HQ","metric":"deposit_balance","current":8560.00,"previous":8230.00},
+    {"org":"HQ","metric":"npl_ratio","current":1.28,"previous":1.18},
+    {"org":"HQ","metric":"fee_income","current":186.40,"previous":179.20},
+    {"org":"HQ","metric":"active_customer_count","current":128600,"previous":121000},
+    {"org":"HQ","metric":"retail_loan_issue_amt","current":420.80,"previous":397.50},
+    {"org":"BJ","metric":"loan_issue_amt","current":360.73,"previous":385.20},
+    {"org":"BJ","metric":"deposit_balance","current":2350.00,"previous":2210.00},
+    {"org":"BJ","metric":"npl_ratio","current":1.10,"previous":1.02},
+    {"org":"BJ","metric":"fee_income","current":50.80,"previous":48.10},
+    {"org":"BJ","metric":"active_customer_count","current":38600,"previous":35400},
+    {"org":"BJ","metric":"retail_loan_issue_amt","current":80.15,"previous":76.80},
+    {"org":"SH","metric":"loan_issue_amt","current":436.20,"previous":428.00},
+    {"org":"SH","metric":"deposit_balance","current":2780.00,"previous":2675.00},
+    {"org":"SH","metric":"npl_ratio","current":0.95,"previous":0.91},
+    {"org":"SH","metric":"fee_income","current":61.20,"previous":59.30},
+    {"org":"SH","metric":"active_customer_count","current":41200,"previous":39800},
+    {"org":"SH","metric":"retail_loan_issue_amt","current":138.40,"previous":129.60}
+  ],
+  "scenarioControls": {
+    "MT01": {"normal":"SUCCEEDED","nonCriticalFailure":"PARTIAL_SUCCESS"},
+    "MT02": {"normal":"SUCCEEDED","dimensionFailure":"PARTIAL_SUCCESS"},
+    "MT03": {"initial":"WAITING_CONFIRMATION","confirmed":"SUCCEEDED"},
+    "MT04": {"cancelAtProgress":0.40,"expected":"CANCELLED"},
+    "MT05": {"failedTask":"deposit_balance","attempt1":"TASK_TIMEOUT","attempt2":"SUCCEEDED"},
+    "MT06": {"failedTask":"channel_structure","expected":"PARTIAL_SUCCESS","completion":"3/4"},
+    "MT07": {"failedTask":"core_metrics","expected":"FAILED"},
+    "MT08": {"reuseRound1Facts":true,"expected":"SUCCEEDED"}
+  }
+}
