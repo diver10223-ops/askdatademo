@@ -1,5 +1,7 @@
 # 智能银行问数平台 · Phase 1 + Phase 2
 
+每日产品、代码、配置、测试和交付物调整统一记录在 [docs/DAILY_CHANGELOG.md](docs/DAILY_CHANGELOG.md)；详细功能修改继续按 [修改分析/README.md](修改分析/README.md) 归档。
+
 一期同时提供 Vue 3 + FastAPI Mock POC 和单文件 Offline Demo。模型、外部数仓与登录均不在一期范围。
 
 ## Codespaces / 本地 POC
