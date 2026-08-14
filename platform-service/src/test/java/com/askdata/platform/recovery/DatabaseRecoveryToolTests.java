@@ -34,7 +34,7 @@ class DatabaseRecoveryToolTests {
         var targetUrl="jdbc:h2:mem:recovery-target;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
         DatabaseRecoveryTool.restoreH2(targetUrl,"sa","",backup);
         DatabaseRecoveryTool.inventory(targetUrl,"sa","",after,"h2");
-        assertThat(Files.readString(after)).isEqualTo(Files.readString(before)).contains("flyway.version=16","release.count=1","secret.reference.count=1");
+        assertThat(Files.readString(after)).isEqualTo(Files.readString(before)).contains("flyway.version=17","release.count=1","secret.reference.count=1");
         assertThatThrownBy(()->DatabaseRecoveryTool.restoreH2(targetUrl,"sa","",backup))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("目标不是空库");
     }

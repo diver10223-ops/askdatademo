@@ -183,6 +183,14 @@
 - 开发状态：V2.1进入M1“契约、状态机和数据库”；V2.2、V2.3保持规划就绪，按正式Product标签依次启动。
 - 涉及文件：`docs/v2.1/07-AskData产品V2.1执行计划与步骤说明.md`、`docs/v2.1/14-V2.1开发启动与M0基线确认.md`、`docs/v2.1/README.md`。
 
+### V2.1 M1首批契约、状态机与数据库实现
+
+- 契约：新增TaskRequest、TaskPlan、TaskNode、Attempt、Fact和EvidenceAnswer Java可校验模型，冻结V2.1字段约束。
+- 状态与错误：新增计划、节点、attempt、请求状态枚举及合法迁移表，冻结九类外部错误码。
+- 数据库：新增Flyway V17，落地计划、节点、依赖、资产绑定、attempt、事实、claim/evidence和计划变更审计表，并扩展request、SQL、Provider与SSE任务关联。
+- 验证：新增契约非法输入/非法迁移测试及迁移结构测试；H2空库迁移、重复迁移、数据库备份恢复和相关回归通过。
+- 进度：T21-101—T21-104完成；T21-105的V16升级/PostgreSQL/回退门禁及T21-106的OpenAPI实现仍待后续完成。
+
 ## 2026-08-13（补录）
 
 ### V2.0 业务方案与 V3.0 规划汇报材料

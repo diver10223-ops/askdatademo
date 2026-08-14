@@ -21,14 +21,16 @@
 
 ## 3. M1 契约、状态机和数据库
 
-- [ ] T21-101 冻结TaskRequest、TaskPlan、TaskNode、Attempt、Fact和EvidenceAnswer Schema。
-- [ ] T21-102 冻结计划、节点、请求状态机和错误码。
-- [ ] T21-103 设计并实现任务计划、节点、依赖、资产绑定、attempt、事实和证据表迁移。
-- [ ] T21-104 扩展现有请求、SQL、Provider和SSE记录的任务关联。
+- [x] T21-101 冻结TaskRequest、TaskPlan、TaskNode、Attempt、Fact和EvidenceAnswer Schema。
+- [x] T21-102 冻结计划、节点、请求状态机和错误码。
+- [x] T21-103 设计并实现任务计划、节点、依赖、资产绑定、attempt、事实和证据表迁移。
+- [x] T21-104 扩展现有请求、SQL、Provider和SSE记录的任务关联。
 - [ ] T21-105 完成空库、V2.0升级、重复迁移、回退恢复和双数据库测试。
 - [ ] T21-106 冻结Java/Python内部OpenAPI和V2.1外部接口。
 
 退出条件：契约和迁移门禁通过，历史V2.0数据无需强制回填DAG。
+
+执行进度：T21-101—T21-104已由Java可校验契约、显式状态迁移表和Flyway V17落地；H2空库、重复迁移与恢复回归已通过。T21-105仍需补齐V16升级、PostgreSQL和回退恢复证据，T21-106等待OpenAPI实现文件及兼容测试。
 
 ## 4. M2 MT01最小多任务闭环
 

@@ -1,0 +1,3 @@
+package com.askdata.platform.multitask.contract;
+
+public enum RequestStatus { PENDING, WAITING_CONFIRMATION, QUEUED, RUNNING, PARTIAL_SUCCESS, SUCCEEDED, FAILED, CANCELLATION_REQUESTED, CANCELLED, TIMED_OUT }
