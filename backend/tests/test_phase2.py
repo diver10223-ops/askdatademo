@@ -26,12 +26,16 @@ class Handler(BaseHTTPRequestHandler):
         body = b'{"data":[{"id":"model"}]}' if self.path.endswith('/models') else (b'{"data":[{"name":"dws_loan_aggr_wide"}]}' if 'system.tables' in self.path else b'1\n')
         self.send_response(200); self.end_headers(); self.wfile.write(body)
     def do_POST(self):
-        length=int(self.headers.get('content-length','0')); self.rfile.read(length)
+        length=int(self.headers.get('content-length','0')); request_body=self.rfile.read(length)
         if '/chat/completions' in self.path:
-            body=json.dumps({"choices":[{"message":{"content":json.dumps({"answer":"provider answer"})}}]}).encode()
+            request_json=json.loads(request_body or b'{}')
+            user_content=request_json.get('messages',[{},{}])[-1].get('content','')
+            user_payload=json.loads(user_content or '{}')
+            generated={"normalized_question":"全行2026年3月贷款指标汇总","targets":["loan_cur","retail_cur","corporate_cur"],"execution_notes":[]} if user_payload.get('scenario_id') else {"answer":"provider answer"}
+            body=json.dumps({"choices":[{"message":{"content":json.dumps(generated)}}]}).encode()
         elif 'EXPLAIN+ESTIMATE' in self.path:
             body=b'{"data":[{"rows":10,"marks":1}]}'
-        else: body=json.dumps({"data":[{"org_name":"全行","stat_dt":"2026-03-31","current_value":980.5}]}).encode()
+        else: body=json.dumps({"data":[{"org_name":"全行","stat_dt":"2026-03-31","current_value":980.5,"previous_value":900.0}]}).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
 
 
@@ -121,6 +125,63 @@ def test_phase2_http_query_and_sse(monkeypatch):
             dashboard_detail=client.get(f"/api/v1/queries/{dashboard['request_id']}").json()
             assert dashboard_detail['request']['status']=='SHORT_CIRCUITED' and dashboard_detail['request']['last_layer']=='L3'
             assert dashboard_detail['layers'][-1]['output']['dashboards'][0]['url']=='/dashboards/head-office.html'
+    finally: http.shutdown()
+
+
+def test_v21_formal_poc_uses_real_model_and_datasource_without_fallback(monkeypatch):
+    restore_baseline(); monkeypatch.setenv('ASKDATA_CREDENTIAL_KEY',Fernet.generate_key().decode()); http=server(); base=f'http://127.0.0.1:{http.server_port}'
+    try:
+        with TestClient(app) as client:
+            profile=client.post('/api/v1/admin/phase2/providers',json={'name':'v21-wire','datasource_type':'CLICKHOUSE','model_base_url':base,'model':'model','model_api_key':'secret','datasource_url':base,'datasource_username':'u','datasource_password':'p','database':'default','allowed_tables':['dws_loan_aggr_wide'],'timeout':2,'retries':0}).json()
+            client.post(f"/api/v1/admin/phase2/providers/{profile['id']}/enable")
+            session=client.post('/api/v1/sessions',json={'role_id':'admin','execution_mode':'PHASE2_POC','provider_profile_id':profile['id']}).json()
+            accepted=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'同时查询全行2026年3月贷款投放、零售贷款和对公贷款，并统一汇总同比变化','scenario_id':'MT01','execution_variant':'POC'})
+            assert accepted.status_code==202,accepted.text
+            request_id=accepted.json()['request_id']
+            with client.stream('GET',f'/api/v1/queries/{request_id}/events') as response: ''.join(response.iter_text())
+            detail=client.get(f'/api/v1/queries/{request_id}').json()
+        assert detail['request']['status']=='SUCCEEDED'
+        assert len(detail['result'])==3
+        assert {item['source'] for item in detail['sql_executions']}=={'REAL_DATASOURCE'}
+        assert all(item['fallback']==0 for item in detail['sql_executions'])
+        assert detail['layers'][1]['provider']=='OpenAICompatibleProvider'
+        assert detail['layers'][-1]['provider']=='OpenAICompatibleProvider'
+        assert '__scope_orgs_' in detail['sql_executions'][0]['actual_sql']
+    finally: http.shutdown()
+
+
+def test_v21_formal_poc_all_scenarios_keep_real_provider_and_terminal_semantics(monkeypatch):
+    import time
+    restore_baseline(); monkeypatch.setenv('ASKDATA_CREDENTIAL_KEY',Fernet.generate_key().decode()); http=server(); base=f'http://127.0.0.1:{http.server_port}'
+    expected={'MT01':'SUCCEEDED','MT02':'SUCCEEDED','MT03':'SUCCEEDED','MT04':'CANCELLED','MT05':'SUCCEEDED','MT06':'PARTIAL_SUCCESS','MT07':'FAILED','MT08':'SUCCEEDED'}
+    try:
+        with TestClient(app) as client:
+            profile=client.post('/api/v1/admin/phase2/providers',json={'name':'v21-matrix-wire','datasource_type':'CLICKHOUSE','model_base_url':base,'model':'model','model_api_key':'secret','datasource_url':base,'datasource_username':'u','datasource_password':'p','database':'default','allowed_tables':['dws_loan_aggr_wide'],'timeout':2,'retries':0}).json()
+            client.post(f"/api/v1/admin/phase2/providers/{profile['id']}/enable")
+            session=client.post('/api/v1/sessions',json={'role_id':'admin','execution_mode':'PHASE2_POC','provider_profile_id':profile['id']}).json()
+            details={}
+            for scenario,status in expected.items():
+                accepted=client.post('/api/v1/queries',json={'session_id':session['id'],'question':f'查询全行2026年3月贷款投放、零售贷款和对公贷款，场景 {scenario}','scenario_id':scenario,'execution_variant':'POC'}).json(); request_id=accepted['request_id']
+                if scenario=='MT03':
+                    for _ in range(100):
+                        current=client.get(f'/api/v1/queries/{request_id}').json()
+                        if current.get('plan') and current['plan']['status']=='WAITING_CONFIRMATION': break
+                        time.sleep(.01)
+                    assert client.post(f'/api/v1/queries/{request_id}/confirm').status_code==200
+                if scenario=='MT04':
+                    time.sleep(.12); assert client.post(f'/api/v1/queries/{request_id}/cancel').status_code==200
+                with client.stream('GET',f'/api/v1/queries/{request_id}/events') as response: events=''.join(response.iter_text())
+                detail=client.get(f'/api/v1/queries/{request_id}').json(); details[scenario]=detail
+                assert detail['request']['status']==status,(scenario,detail['request'])
+                assert detail['layers'][1]['provider']=='OpenAICompatibleProvider'
+                assert all(item['source']=='REAL_DATASOURCE' and item['fallback']==0 for item in detail['sql_executions'])
+                if scenario=='MT08': assert 'event: task.reused' in events and any(item.get('reusedFromFactId') for item in detail['layers'][-1]['output']['evidence'])
+            assert details['MT03']['plan']['version']==2
+            assert details['MT04']['layers'][-1]['provider']=='SAFETY_POLICY'
+            assert details['MT06']['layers'][-1]['output']['unverified']
+            assert details['MT07']['layers'][-1]['provider']=='SAFETY_POLICY' and '总体判断' in details['MT07']['layers'][-1]['output']['answer']
+            with connect(PLATFORM_DB) as db:
+                assert db.execute("SELECT COUNT(*) FROM task_attempts a JOIN task_nodes n ON n.id=a.node_id JOIN task_plans p ON p.id=n.plan_id JOIN requests r ON r.id=p.request_id WHERE r.session_id=? AND p.scenario_id='MT05' AND a.attempt_no=2",(session['id'],)).fetchone()[0]==1
     finally: http.shutdown()
 
 

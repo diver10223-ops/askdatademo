@@ -248,13 +248,15 @@ for (const [t] of __VLS_getVForSourceType((__VLS_ctx.turns))) {
         __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
             ...{ class: "msg-item ai-msg" },
         });
-        __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
+        __VLS_asFunctionalElement(__VLS_elements.details, __VLS_elements.details)({
             ...{ class: "ai-bubble unified-trace-bubble" },
+            open: true,
         });
-        __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
+        __VLS_asFunctionalElement(__VLS_elements.summary, __VLS_elements.summary)({
             ...{ class: "unified-trace-head" },
         });
         __VLS_asFunctionalElement(__VLS_elements.span, __VLS_elements.span)({});
+        (t.running ? '处理中' : '已完成');
         __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
             ...{ class: "stream-transcript" },
         });
@@ -466,6 +468,14 @@ __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
 __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
     ...{ class: "quick-chat-title" },
 });
+__VLS_asFunctionalElement(__VLS_elements.button, __VLS_elements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.router.push('/v2.1');
+            // @ts-ignore
+            [router,];
+        } },
+    ...{ class: "version-link" },
+});
 __VLS_asFunctionalElement(__VLS_elements.div, __VLS_elements.div)({
     ...{ class: "quick-chat-buttons" },
 });
@@ -574,6 +584,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['error']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-chat-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-chat-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['version-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-chat-buttons']} */ ;
 /** @type {__VLS_StyleScopedClasses['selected']} */ ;
 /** @type {__VLS_StyleScopedClasses['input-footer']} */ ;

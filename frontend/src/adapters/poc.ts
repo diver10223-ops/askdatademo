@@ -1,9 +1,127 @@
-import type {Adapter,RoleId,Session,QueryDetail} from '../types';
-export class PocApiAdapter implements Adapter {mode='POC' as const;
- async json(path:string,init?:RequestInit){const r=await fetch('/api/v1'+path,{headers:{'Content-Type':'application/json'},...init});if(!r.ok)throw new Error((await r.text())||r.statusText);return r.json()}
- createSession(role_id:RoleId,options:Record<string,unknown>={}):Promise<Session>{return this.json('/sessions',{method:'POST',body:JSON.stringify({role_id,...options})})}
- async query(session_id:string,question:string,scenario_id:string,parent_request_id?:string){const x=await this.json('/queries',{method:'POST',body:JSON.stringify({session_id,question,scenario_id,parent_request_id})});return x.request_id}
- async events(id:string,onEvent:(e:Record<string,unknown>)=>void){let last=Number(sessionStorage.getItem('askdata-event-'+id)||0),attempts=0,done=false;while(!done&&attempts<5){await new Promise<void>((resolve,reject)=>{const es=new EventSource(`/api/v1/queries/${id}/events?last_event_id=${last}`);const names=['request.created','layer.started','layer.completed','answer.delta','request.completed','request.cancelled'];names.forEach(n=>es.addEventListener(n,(x)=>{const m=x as MessageEvent;last=Number(m.lastEventId||last);sessionStorage.setItem('askdata-event-'+id,String(last));onEvent({type:n,...JSON.parse(m.data),event_id:last});if(n==='request.completed'||n==='request.cancelled'){done=true;sessionStorage.removeItem('askdata-event-'+id);es.close();resolve()}}));es.onerror=async()=>{es.close();if(done){resolve();return}try{const detail=await this.detail(id);if(!['PENDING','RUNNING'].includes(String(detail.request.status))){done=true;sessionStorage.removeItem('askdata-event-'+id);onEvent({type:'request.completed',status:detail.request.status,recovered:true});resolve();return}}catch{}reject(new Error('SSE_RECONNECT'))}}).catch(()=>{});if(!done){attempts++;await new Promise(r=>setTimeout(r,Math.min(1000,150*attempts)))}}if(!done)throw new Error('SSE连接重试失败，可刷新页面从Event ID恢复')}
- detail(id:string):Promise<QueryDetail>{return this.json(`/queries/${id}`)} cancel(id:string):Promise<void>{return this.json(`/queries/${id}/cancel`,{method:'POST'})} readiness(){return this.json('/admin/readiness')}
- admin(path:string,init?:RequestInit){return this.json('/admin'+path,init)}
+import type { Adapter, RoleId, Session, QueryDetail } from "../types";
+export class PocApiAdapter implements Adapter {
+  mode = "POC" as const;
+  async json(path: string, init?: RequestInit) {
+    const r = await fetch("/api/v1" + path, {
+      headers: { "Content-Type": "application/json" },
+      ...init,
+    });
+    if (!r.ok) throw new Error((await r.text()) || r.statusText);
+    return r.json();
+  }
+  createSession(
+    role_id: RoleId,
+    options: Record<string, unknown> = {},
+  ): Promise<Session> {
+    return this.json("/sessions", {
+      method: "POST",
+      body: JSON.stringify({ role_id, ...options }),
+    });
+  }
+  async query(
+    session_id: string,
+    question: string,
+    scenario_id: string,
+    parent_request_id?: string,
+    execution_variant: "DEMO" | "POC" = "POC",
+  ) {
+    const x = await this.json("/queries", {
+      method: "POST",
+      body: JSON.stringify({
+        session_id,
+        question,
+        scenario_id,
+        parent_request_id,
+        execution_variant,
+      }),
+    });
+    return x.request_id;
+  }
+  async events(id: string, onEvent: (e: Record<string, unknown>) => void) {
+    let last = Number(sessionStorage.getItem("askdata-event-" + id) || 0),
+      attempts = 0,
+      done = false;
+    while (!done && attempts < 5) {
+      await new Promise<void>((resolve, reject) => {
+        const es = new EventSource(
+          `/api/v1/queries/${id}/events?last_event_id=${last}`,
+        );
+        const names = [
+          "request.created",
+          "plan.created",
+          "task.created",
+          "plan.waiting_confirmation",
+          "plan.confirmed",
+          "plan.expanded",
+          "layer.started",
+          "layer.completed",
+          "task.started",
+          "task.retrying",
+          "task.reused",
+          "task.completed",
+          "answer.delta",
+          "request.completed",
+          "request.cancelled",
+        ];
+        names.forEach((n) =>
+          es.addEventListener(n, (x) => {
+            const m = x as MessageEvent;
+            last = Number(m.lastEventId || last);
+            sessionStorage.setItem("askdata-event-" + id, String(last));
+            onEvent({ type: n, ...JSON.parse(m.data), event_id: last });
+            if (n === "request.completed" || n === "request.cancelled") {
+              done = true;
+              sessionStorage.removeItem("askdata-event-" + id);
+              es.close();
+              resolve();
+            }
+          }),
+        );
+        es.onerror = async () => {
+          es.close();
+          if (done) {
+            resolve();
+            return;
+          }
+          try {
+            const detail = await this.detail(id);
+            if (
+              !["PENDING", "RUNNING"].includes(String(detail.request.status))
+            ) {
+              done = true;
+              sessionStorage.removeItem("askdata-event-" + id);
+              onEvent({
+                type: "request.completed",
+                status: detail.request.status,
+                recovered: true,
+              });
+              resolve();
+              return;
+            }
+          } catch {}
+          reject(new Error("SSE_RECONNECT"));
+        };
+      }).catch(() => {});
+      if (!done) {
+        attempts++;
+        await new Promise((r) => setTimeout(r, Math.min(1000, 150 * attempts)));
+      }
+    }
+    if (!done) throw new Error("SSE连接重试失败，可刷新页面从Event ID恢复");
+  }
+  detail(id: string): Promise<QueryDetail> {
+    return this.json(`/queries/${id}`);
+  }
+  confirm(id: string): Promise<void> {
+    return this.json(`/queries/${id}/confirm`, { method: "POST" });
+  }
+  cancel(id: string): Promise<void> {
+    return this.json(`/queries/${id}/cancel`, { method: "POST" });
+  }
+  readiness() {
+    return this.json("/admin/readiness");
+  }
+  admin(path: string, init?: RequestInit) {
+    return this.json("/admin" + path, init);
+  }
 }

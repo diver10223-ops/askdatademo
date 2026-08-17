@@ -17,11 +17,12 @@ from .sql_security import DEFAULT_ANALYTIC_COLUMNS,SQLPolicy
 from .runtime import RuntimeConfigError,resolve_runtime
 from .runtime.publisher import publish_runtime
 from .internal_api import router as internal_router
+from .multitask import Mt01Engine
 now=lambda:datetime.now(timezone.utc).isoformat()
 app=FastAPI(title='AskData Phase 1 + Phase 2',version='2.0.0'); engine=Engine(); active_engines={}
 app.include_router(internal_router)
 class SessionIn(BaseModel): role_id:str=Field(pattern='^(admin|beijing|retail)$'); execution_mode:str=Field(default='PHASE1_DEMO',pattern='^(PHASE1_DEMO|PHASE2_DEMO|PHASE2_POC)$'); provider_profile_id:str|None=None
-class QueryIn(BaseModel): session_id:str; question:str=Field(min_length=1,max_length=1000); scenario_id:str|None=None; parent_request_id:str|None=None
+class QueryIn(BaseModel): session_id:str; question:str=Field(min_length=1,max_length=1000); scenario_id:str|None=None; parent_request_id:str|None=None; execution_variant:str=Field(default='POC',pattern='^(DEMO|POC)$')
 class DraftIn(BaseModel): name:str; payload:dict
 class ResourceIn(BaseModel): id:str=Field(min_length=1,max_length=100); payload:dict; enabled:bool=True
 class MockRowIn(BaseModel):
@@ -81,15 +82,25 @@ async def create_query(body:QueryIn):
   ctx=json.loads(s['context']); phase2=db.execute('SELECT * FROM phase2_session_profiles WHERE session_id=?',(body.session_id,)).fetchone(); stored_mode=db.execute('SELECT execution_mode FROM session_execution_modes WHERE session_id=?',(body.session_id,)).fetchone(); mode=stored_mode['execution_mode'] if stored_mode else (phase2['execution_mode'] if phase2 else 'PHASE1_DEMO')
   version=db.execute('SELECT payload FROM config_versions WHERE id=?',(s['config_version_id'],)).fetchone(); config=json.loads(version[0]); override=config.get('scenario_overrides',{}).get(body.scenario_id,{}); config={**config,**override,**{k:{**config.get(k,{}),**override.get(k,{})} for k in ('assets','compliance','system')}}; permissions=json.loads(s['permission_snapshot'])
   try:
-   selected_engine=Engine(build_registry(phase2['profile_id'])) if phase2 else engine
+   if body.scenario_id and body.scenario_id.startswith('MT') and body.execution_variant=='POC' and (not phase2 or mode!='PHASE2_POC'):
+    raise HTTPException(409,detail={'code':'V21_POC_PROVIDER_REQUIRED','message':'V2.1 POC 必须使用 PHASE2_POC Session 和已启用 Provider Profile'})
+   registry=build_registry(phase2['profile_id']) if phase2 else None
+   selected_engine=Mt01Engine(body.execution_variant,registry) if body.scenario_id and body.scenario_id.startswith('MT') else (Engine(registry) if registry else engine)
    profile_cfg=json.loads(db.execute('SELECT public_config FROM phase2_provider_profiles WHERE id=?',(phase2['profile_id'],)).fetchone()[0]) if phase2 else {}
    runtime=resolve_runtime(config,mode,profile_cfg.get('allowed_tables'))
   except (CredentialError,ValueError,RuntimeConfigError) as exc: raise HTTPException(409,detail={'code':'RUNTIME_CONFIG_UNAVAILABLE','message':'运行配置或Provider不可用，请检查并发布后台配置','reason':type(exc).__name__,'missing':getattr(exc,'missing',[])})
-  db.execute('INSERT INTO requests(id,session_id,parent_request_id,trace_id,scenario_id,question,mode,status,config_version_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',(rid,body.session_id,body.parent_request_id,trace,body.scenario_id,body.question,mode,'PENDING',s['config_version_id'],now()))
- c=PipelineContext(body.session_id,rid,s['role_id'],s['config_version_id'],body.question,body.parent_request_id,body.scenario_id,mode=mode,parameters=ctx,permissions=permissions,config=config,runtime=runtime)
+  request_mode=f'V21_{body.execution_variant}' if body.scenario_id and body.scenario_id.startswith('MT') else mode
+  db.execute('INSERT INTO requests(id,session_id,parent_request_id,trace_id,scenario_id,question,mode,status,config_version_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',(rid,body.session_id,body.parent_request_id,trace,body.scenario_id,body.question,request_mode,'PENDING',s['config_version_id'],now()))
+ c=PipelineContext(body.session_id,rid,s['role_id'],s['config_version_id'],body.question,body.parent_request_id,body.scenario_id,mode=request_mode,parameters=ctx,permissions=permissions,config=config,runtime=runtime)
  active_engines[rid]=selected_engine
  async def execute():
   try: await selected_engine.run(c)
+  except Exception as exc:
+   code=type(exc).__name__; message=str(exc)[:240] or code
+   with connect(PLATFORM_DB) as db:
+    current=db.execute('SELECT last_layer FROM requests WHERE id=?',(rid,)).fetchone(); stage=current['last_layer'] if current else None
+    db.execute("UPDATE requests SET status='FAILED',termination_reason=?,completed_at=? WHERE id=?",(f'{stage or "START"}:{code}:{message}',now(),rid))
+   if hasattr(selected_engine,'event'): selected_engine.event(c,'request.completed',{'status':'FAILED','stage':stage,'errorCode':code,'message':message})
   finally: active_engines.pop(rid,None)
  asyncio.create_task(execute()); return {'request_id':rid,'trace_id':trace,'status':'PENDING','mode':mode}
 @app.get('/api/v1/queries/{rid}')
@@ -100,7 +111,11 @@ def query_detail(rid:str):
   layers=[{**dict(x),'input':json.loads(x['input_json']),'output':json.loads(x['output_json'] or '{}')} for x in db.execute('SELECT * FROM layer_executions WHERE request_id=? ORDER BY id',(rid,))]
   sql=[{**dict(x),'parameters':json.loads(x['parameters'])} for x in db.execute('SELECT * FROM sql_executions WHERE request_id=? ORDER BY sequence',(rid,))]
   snap=db.execute('SELECT * FROM result_snapshots WHERE request_id=?',(rid,)).fetchone()
- return {'request':dict(q),'layers':layers,'sql_executions':sql,'result':json.loads(snap['payload']) if snap else []}
+  plan=db.execute('SELECT * FROM task_plans WHERE request_id=?',(rid,)).fetchone()
+  tasks=[]
+  if plan:
+   tasks=[{**dict(x),'depends_on':json.loads(x['depends_on']),'input':json.loads(x['input_json']),'output':json.loads(x['output_json']) if x['output_json'] else None} for x in db.execute('SELECT * FROM task_nodes WHERE plan_id=? ORDER BY code',(plan['id'],))]
+ return {'request':dict(q),'layers':layers,'sql_executions':sql,'result':json.loads(snap['payload']) if snap else [],'plan':({**dict(plan),'plan':json.loads(plan['plan_json'])} if plan else None),'tasks':tasks}
 @app.get('/api/v1/queries/{rid}/events')
 async def events(rid:str,request:Request):
  try: last=int(request.headers.get('last-event-id') or request.query_params.get('last_event_id','0'))
@@ -123,8 +138,19 @@ async def cancel(rid:str):
   if q['status'] in ('SUCCEEDED','FAILED','BLOCKED','SHORT_CIRCUITED','WAITING_INPUT','PARTIAL_SUCCESS','CANCELLED','TIMED_OUT'): return {'request_id':rid,'status':q['status'],'idempotent':True}
   db.execute('UPDATE requests SET cancel_requested=1,cancelled_by=?,cancelled_at=? WHERE id=?',('demo-user',now(),rid))
  running=active_engines.get(rid)
- if running: await running.registry.datasource.cancel(rid)
+ if running and hasattr(running,'cancel'): await running.cancel()
+ if running and getattr(running,'registry',None): await running.registry.datasource.cancel(rid)
  return {'request_id':rid,'status':'CANCELLATION_REQUESTED'}
+@app.post('/api/v1/queries/{rid}/confirm')
+async def confirm_query(rid:str):
+ with connect(PLATFORM_DB) as db:
+  q=db.execute('SELECT scenario_id,cancel_requested FROM requests WHERE id=?',(rid,)).fetchone(); plan=db.execute('SELECT status FROM task_plans WHERE request_id=?',(rid,)).fetchone()
+ if not q: raise HTTPException(404,detail={'code':'ASSET_NOT_FOUND','message':'请求不存在'})
+ if q['scenario_id']!='MT03' or not plan or plan['status']!='WAITING_CONFIRMATION': raise HTTPException(409,detail={'code':'INVALID_STATE','message':'当前请求不在计划确认状态'})
+ if q['cancel_requested']: raise HTTPException(409,detail={'code':'INVALID_STATE','message':'请求已取消'})
+ running=active_engines.get(rid)
+ if not running or not hasattr(running,'confirm'): raise HTTPException(409,detail={'code':'INVALID_STATE','message':'执行器不可用'})
+ await running.confirm(); return {'request_id':rid,'status':'CONFIRMED'}
 @app.get('/api/v1/admin/baseline')
 def baseline(): return json.loads(BASELINE.read_text())
 @app.get('/api/v1/admin/logs')
@@ -387,6 +413,9 @@ def publish_resources():
   db.execute('INSERT INTO audit_logs(action,actor,detail,created_at) VALUES(?,?,?,?)',('PUBLISH_RESOURCES','admin',json.dumps({'id':cid,'pages':list(by_page)},ensure_ascii=False),now()))
  return {'id':cid,'version':version,'status':'PUBLISHED','affects':'new_sessions_only','pages':list(by_page)}
 if dist.exists():
+ @app.get('/v2',include_in_schema=False)
+ @app.get('/v2.1',include_in_schema=False)
+ def user_spa(): return FileResponse(dist/'index.html')
  @app.get('/admin',include_in_schema=False)
  @app.get('/admin/{path:path}',include_in_schema=False)
  def admin_spa(path:str=''): return FileResponse(dist/'index.html')

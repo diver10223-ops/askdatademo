@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS phase2_datasource_configs(id TEXT PRIMARY KEY,name TE
 CREATE TABLE IF NOT EXISTS phase2_session_profiles(session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,profile_id TEXT NOT NULL REFERENCES phase2_provider_profiles(id),execution_mode TEXT NOT NULL CHECK(execution_mode IN ('PHASE2_DEMO','PHASE2_POC')));
 CREATE TABLE IF NOT EXISTS session_execution_modes(session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,execution_mode TEXT NOT NULL CHECK(execution_mode IN ('PHASE1_DEMO','PHASE2_DEMO','PHASE2_POC')));
 CREATE TABLE IF NOT EXISTS provider_diagnostics(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL,component TEXT NOT NULL,status TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS task_plans(id TEXT PRIMARY KEY,request_id TEXT NOT NULL UNIQUE REFERENCES requests(id),version INTEGER NOT NULL,status TEXT NOT NULL,scenario_id TEXT NOT NULL,plan_json TEXT NOT NULL,created_at TEXT NOT NULL,completed_at TEXT);
+CREATE TABLE IF NOT EXISTS task_nodes(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL REFERENCES task_plans(id) ON DELETE CASCADE,code TEXT NOT NULL,type TEXT NOT NULL,critical INTEGER NOT NULL,status TEXT NOT NULL,depends_on TEXT NOT NULL DEFAULT '[]',input_json TEXT NOT NULL DEFAULT '{}',output_json TEXT,started_at TEXT,completed_at TEXT,error_code TEXT,UNIQUE(plan_id,code));
+CREATE TABLE IF NOT EXISTS task_attempts(id TEXT PRIMARY KEY,node_id TEXT NOT NULL REFERENCES task_nodes(id) ON DELETE CASCADE,attempt_no INTEGER NOT NULL,status TEXT NOT NULL,started_at TEXT,completed_at TEXT,error_code TEXT,UNIQUE(node_id,attempt_no));
+CREATE TABLE IF NOT EXISTS task_facts(id TEXT PRIMARY KEY,node_id TEXT NOT NULL UNIQUE REFERENCES task_nodes(id),attempt_id TEXT NOT NULL REFERENCES task_attempts(id),payload TEXT NOT NULL,content_hash TEXT NOT NULL,data_as_of TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_task_nodes_plan_status ON task_nodes(plan_id,status,code);
 ''')
   columns={row['name'] for row in c.execute('PRAGMA table_info(result_snapshots)')}
   if 'classification_level' not in columns: c.execute("ALTER TABLE result_snapshots ADD COLUMN classification_level TEXT NOT NULL DEFAULT 'INTERNAL'")
@@ -51,7 +56,7 @@ CREATE TABLE IF NOT EXISTS provider_diagnostics(id INTEGER PRIMARY KEY AUTOINCRE
     payload['runtime']=merged
     c.execute('UPDATE config_versions SET payload=? WHERE id=?',(json.dumps(payload,ensure_ascii=False),row['id']))
  with connect(WAREHOUSE_DB) as c:
-  c.executescript('''CREATE TABLE IF NOT EXISTS dws_loan_aggr_wide(stat_dt TEXT NOT NULL,org_name TEXT NOT NULL,loan_cur REAL,loan_last REAL,retail_cur REAL,retail_last REAL,corporate_cur REAL,corporate_last REAL,PRIMARY KEY(stat_dt,org_name)); CREATE INDEX IF NOT EXISTS idx_loan_org_date ON dws_loan_aggr_wide(org_name,stat_dt);''')
+  c.executescript('''CREATE TABLE IF NOT EXISTS dws_loan_aggr_wide(stat_dt TEXT NOT NULL,org_name TEXT NOT NULL,loan_cur REAL,loan_last REAL,retail_cur REAL,retail_last REAL,corporate_cur REAL,corporate_last REAL,PRIMARY KEY(stat_dt,org_name)); CREATE INDEX IF NOT EXISTS idx_loan_org_date ON dws_loan_aggr_wide(org_name,stat_dt); CREATE TABLE IF NOT EXISTS v21_quarterly_fact(org TEXT NOT NULL,metric TEXT NOT NULL,current_value REAL NOT NULL,previous_value REAL NOT NULL,period TEXT NOT NULL,PRIMARY KEY(org,metric,period));''')
 
 def restore_baseline(reset_mock=True):
  migrate(); b=json.loads(BASELINE.read_text()); b.setdefault('runtime',json.loads((BASELINE.parent/'demo_runtime_defaults.json').read_text())); now=datetime.now(timezone.utc).isoformat()
@@ -68,6 +73,11 @@ def restore_baseline(reset_mock=True):
   with connect(WAREHOUSE_DB) as c:
    c.execute('DELETE FROM dws_loan_aggr_wide')
    c.executemany('INSERT INTO dws_loan_aggr_wide VALUES(:stat_dt,:org_name,:loan_cur,:loan_last,:retail_cur,:retail_last,:corporate_cur,:corporate_last)',b['warehouse_rows'])
+ with connect(WAREHOUSE_DB) as c:
+  if reset_mock or c.execute('SELECT COUNT(*) FROM v21_quarterly_fact').fetchone()[0]==0:
+   v21=json.loads((BASELINE.parent/'demo/v2.1/baseline.json').read_text())
+   c.execute('DELETE FROM v21_quarterly_fact')
+   c.executemany('INSERT INTO v21_quarterly_fact VALUES(:org,:metric,:current,:previous,:period)',[{**row,'period':v21['period']['current']} for row in v21['quarterlyFacts']])
 
 def restore_official_config():
  migrate()
