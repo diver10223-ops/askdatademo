@@ -47,6 +47,22 @@ def test_query_layer_uses_published_sql_template():
  assert result.status=='SUCCEEDED' and context.sql_plan[0]['actual_sql'].endswith('ORDER BY org_name')
 
 
+def test_org_comparison_followup_expands_authorized_orgs_and_queries_all_rows():
+ from app.layers.l2_understanding import UnderstandingLayer
+ from app.layers.l3_semantic import SemanticLayer
+ from app.layers.l5_query import QueryLayer
+ defaults=json.loads((Path(__file__).parents[2]/'fixtures'/'demo_runtime_defaults.json').read_text())
+ permissions={'orgs':['全行','北京分行','上海分行'],'metrics':['贷款投放']}
+ context=PipelineContext('s','x','admin','v2','按机构对比该指标',parameters={'metric':'loan_cur','org':'全行','date':'2026-03-31'},permissions=permissions,config={'runtime':defaults})
+ asyncio.run(UnderstandingLayer().execute(context))
+ asyncio.run(SemanticLayer().execute(context))
+ result=asyncio.run(QueryLayer().execute(context))
+ assert context.parameters['orgs']==['北京分行','上海分行']
+ assert context.semantic_plan['intent']=='org_comparison'
+ assert result.status=='SUCCEEDED' and 'IN (:org_0, :org_1)' in context.sql_plan[0]['actual_sql']
+ assert context.sql_plan[0]['parameters']['org_1']=='上海分行'
+
+
 def test_phase1_session_keeps_phase1_demo_mode():
  with TestClient(app) as client:
   session=client.post('/api/v1/sessions',json={'role_id':'admin','execution_mode':'PHASE1_DEMO'}).json()

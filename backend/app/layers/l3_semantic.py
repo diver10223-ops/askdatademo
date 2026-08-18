@@ -7,5 +7,8 @@ class SemanticLayer:
   if c.scenario_id==semantic.get('dashboard_scenario') or any(x in c.question for x in semantic.get('dashboard_keywords',[])):
    target=semantic.get('dashboard_names',{}).get(c.role_id); links=semantic.get('dashboard_links',{}).get(c.role_id,[])
    return LayerResult('SHORT_CIRCUITED',{'dashboard':target,'url':links[0]['url'] if links else assets.get('dashboard_url'),'dashboards':links},True)
-  c.semantic_plan={'intent':'attribution' if any(x in c.question for x in semantic.get('attribution_keywords',[])) else 'query','parameters':c.parameters}
+  if c.parameters.get('orgs'): intent='org_comparison'
+  elif any(x in c.question for x in semantic.get('attribution_keywords',[])): intent='attribution'
+  else: intent='query'
+  c.semantic_plan={'intent':intent,'parameters':c.parameters}
   return LayerResult(output=c.semantic_plan)

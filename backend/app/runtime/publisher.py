@@ -56,7 +56,9 @@ def publish_runtime(current: dict[str, Any], by_page: dict[str, list[dict]]) -> 
         for item in templates:
             payload = item["payload"]
             template = str(payload.get("SQL模板") or "").replace("{metric}", "{columns}")
-            if template: query_templates["attribution" if "归因" in str(payload.get("类型")) else "query"] = template
+            kind = str(payload.get("类型"))
+            key = "org_comparison" if "多机构" in kind else "attribution" if "归因" in kind else "query"
+            if template: query_templates[key] = template
         if query_templates: assets["sql_templates"] = query_templates
 
     dashboards = by_page.get("dashboards", [])
