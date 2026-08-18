@@ -12,7 +12,9 @@ class InterpretationLayer:
  def __init__(self,registry): self.registry=registry
  async def execute(self,c):
   runtime=runtime_for(c); wording=runtime.section('interpretation'); assets=runtime.section('assets'); row=c.results[0] if c.results else {}; cur=row.get('current_value'); prev=row.get('previous_value'); org=row.get(assets.get('org_field','org_name')); date=row.get(assets.get('date_field','stat_dt'))
-  if cur is None: answer=wording.get('empty','查询已完成。')
+  if c.semantic_plan.get('intent')=='org_comparison' and c.results:
+   answer='按机构对比结果：'+'；'.join(f"{item.get(assets.get('org_field','org_name'))} {item.get('current_value'):.2f}" for item in c.results if item.get('current_value') is not None)+'。'
+  elif cur is None: answer=wording.get('empty','查询已完成。')
   elif prev: answer=wording['comparison'].format(org=org,current=cur,previous=prev,rate=(cur-prev)/prev*100)
   else: answer=wording['single'].format(org=org,date=date,current=cur)
   if any('factor' in x for x in c.results): answer+=wording.get('attribution_suffix','')
@@ -25,4 +27,7 @@ class InterpretationLayer:
    else: validation='REJECTED_FACT_INCONSISTENCY'
   elif getattr(self.registry,'phase',1)==2: validation='PROVIDER_ERROR_FALLBACK'
   c.answer=answer
-  return LayerResult(output={'answer':answer,'table':c.results,'chart':wording.get('chart'),'guides':wording.get('guides',[]),'model_validation':validation,'deterministic_final_decision':True})
+  guides=list(wording.get('guides',[]))
+  cause_guide='为什么该指标发生变化'
+  if not any('原因' in item or '为什么' in item for item in guides): guides.insert(-1 if guides else 0,cause_guide)
+  return LayerResult(output={'answer':answer,'table':c.results,'chart':wording.get('chart'),'guides':guides,'model_validation':validation,'deterministic_final_decision':True})

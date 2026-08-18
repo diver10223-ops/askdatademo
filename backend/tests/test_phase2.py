@@ -115,7 +115,7 @@ def test_phase2_http_query_and_sse(monkeypatch):
             actual=detail['sql_executions'][0]
             assert '__scope_orgs_' in actual['actual_sql'] and actual['actual_sql'].endswith('LIMIT 1000')
             assert detail['layers'][5]['output']['security'][0]['explain']['estimated_rows']==10
-            assert detail['layers'][-1]['output']['chart']['type']=='bar' and len(detail['layers'][-1]['output']['guides'])==3
+            assert detail['layers'][-1]['output']['chart']['type']=='bar' and len(detail['layers'][-1]['output']['guides'])==4
             dashboard=client.post('/api/v1/queries',json={'session_id':session['id'],'question':'打开经营驾驶舱','scenario_id':'scenario-2'}).json()
             with client.stream('GET',f"/api/v1/queries/{dashboard['request_id']}/events") as response: ''.join(response.iter_text())
             dashboard_detail=client.get(f"/api/v1/queries/{dashboard['request_id']}").json()

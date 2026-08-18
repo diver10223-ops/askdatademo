@@ -34,7 +34,7 @@
       "beijing": [{"name": "分行行长经营驾驶舱", "url": "/dashboards/branch-president.html"}],
       "retail": [{"name": "业务负责人专项驾驶舱", "url": "/dashboards/business-owner.html"}]
     },
-    "attribution_keywords": ["同比", "为什么", "下降"]
+    "attribution_keywords": ["同比", "为什么", "原因", "下降"]
   },
   "assets": {
     "table": "dws_loan_aggr_wide",
@@ -45,7 +45,10 @@
       "retail_cur": {"current": "retail_cur", "previous": "retail_last"},
       "corporate_cur": {"current": "corporate_cur", "previous": "corporate_last"}
     },
-    "sql_templates": {"query": "SELECT {org_field}, {date_field}, {columns} FROM {table} WHERE {org_field} = :org AND {date_field} = :date"},
+    "sql_templates": {
+      "query": "SELECT {org_field}, {date_field}, {columns} FROM {table} WHERE {org_field} = :org AND {date_field} = :date",
+      "org_comparison": "SELECT {org_field}, {date_field}, {columns} FROM {table} WHERE {org_field} IN ({org_placeholders}) AND {date_field} = :date ORDER BY current_value DESC"
+    },
     "dashboard_url": "builtin://dashboard"
   },
   "query": {"attribution_scenario": "scenario-4", "attribution_fixture": "attribution", "attribution_business_label": "归因维度 Fixture"},
@@ -56,7 +59,7 @@
     "comparison": "{org}本期为 {current:.2f}，上期为 {previous:.2f}，同比 {rate:.2f}%。",
     "attribution_suffix": " 主要受阶段性放款节奏影响。",
     "chart": {"type": "bar", "title": "经营指标查询结果", "category_field": "org_name", "series": ["current_value", "previous_value"]},
-    "guides": ["查看该指标的同比变化", "按机构对比该指标", "打开当前角色经营驾驶舱"]
+    "guides": ["查看该指标的同比变化", "按机构对比该指标", "为什么该指标发生变化", "打开当前角色经营驾驶舱"]
   },
   "scenario_bindings": {
     "scenario-1": {"intent": "query", "required": ["org", "date", "metric"], "terminal_layer": "L7", "sql_template": "query", "chart": true},

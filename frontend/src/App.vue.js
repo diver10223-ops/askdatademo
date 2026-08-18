@@ -111,7 +111,8 @@ function chartWidth(t, value) { const max = Math.max(1, ...chartRows(t).map(x =>
 function optionQuery(t, value) { const base = terminalOutput(t).options || []; const chosen = value.includes('2026') ? '2026年3月' : value; const org = chosen.includes('分行') || chosen === '全行' ? chosen : (base.find((x) => x.includes('分行') || x === '全行') || '全行'); const metric = chosen.includes('贷款') ? chosen : '贷款投放'; return [chosen.includes('2026') ? chosen : '2026年3月', org, metric].join('，'); }
 function guideScene(text, current) { if (text.includes('驾驶舱'))
     return 1; if (text.includes('同比'))
-    return 3; return current - 1; }
+    return 3; if (text.includes('原因') || text.includes('为什么'))
+    return 7; return current - 1; }
 function layerInput(t, e) { if (e.layer_code === 'L1')
     return '原始问句：' + t.question; if (e.layer_code === 'L2')
     return '标准化问句 + 当前角色权限快照：' + currentRole.value; if (e.layer_code === 'L3')

@@ -30,6 +30,14 @@ class UnderstandingLayer:
   if requested_metric: inherited['metric']=rules.get('metric_codes',{}).get(requested_metric)
   for keyword,value in rules.get('date_values',{}).items():
    if keyword in q: inherited['date']=value; break
+  # “按机构对比” is a dimension expansion, not another single-org query.  The
+  # previous turn's org remains in session context, so explicitly replace it
+  # with every concrete organization in the caller's permission snapshot.
+  if '按机构对比' in q or '各机构对比' in q:
+   allowed_orgs=[org for org in rules.get('organizations',[]) if org in permissions.get('orgs',[]) and org!='全行']
+   if not allowed_orgs: allowed_orgs=[org for org in rules.get('organizations',[]) if org in permissions.get('orgs',[])]
+   inherited['orgs']=allowed_orgs
+  else: inherited.pop('orgs',None)
   effective_org=inherited.get('org'); metric_by_code={code:name for name,code in rules.get('metric_codes',{}).items()}; effective_metric=metric_by_code.get(inherited.get('metric'))
   if 'orgs' in permissions and effective_org and effective_org not in permissions['orgs']: return LayerResult('BLOCKED',{'message':f'当前角色无权查询{effective_org}'},True,'PERMISSION_DENIED')
   if 'metrics' in permissions and effective_metric and effective_metric not in permissions['metrics']: return LayerResult('BLOCKED',{'message':f'当前角色无权查询{effective_metric}'},True,'PERMISSION_DENIED')
