@@ -1,0 +1,96 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GraphRAG、行为特征与洞察层差异应对方案</title><link rel="stylesheet" href="competitive-analysis.css"></head><body>
+<header class="topbar"><a class="brand" href="index.html"><span>AD</span><b>竞品分析中心</b></a><nav><a href="index.html">总览</a><a href="01-竞品智能问数方案-脱敏整理.html">竞品方案</a><a href="02-竞品方案与AskData-V2对比分析.html">V2 对比</a><a href="03-竞品方案与AskData-V3规划对比分析.html">V3 规划对比</a><a class="active" href="04-GraphRAG行为洞察差异应对方案.html">差异应对方案</a></nav></header>
+<div class="page"><aside><div class="aside-label">决策导航</div><a href="#conclusion">结论</a><a href="#swot">优劣势分析</a><a href="#principles">建设原则</a><a href="#architecture">目标架构</a><a href="#roadmap">分阶段路线</a><a href="#customer">客户应对</a><a href="#delivery">最小交付包</a><a href="#acceptance">验收指标</a><a href="#risk">风险控制</a><a href="#decision">决策建议</a></aside>
+<main><section class="hero"><div class="kicker">COMPETITIVE RESPONSE PLAYBOOK</div><h1>GraphRAG、行为特征与洞察层差异应对方案</h1><p>回答两个关键问题：我们是否应该补齐，以及客户坚持要求时，如何在不破坏可信问数底座的前提下分阶段交付。</p><div class="meta"><span>产品策略</span><span>技术路线</span><span>客户应对</span><span>验收门禁</span></div></section>
+<article>
+<h2 id="conclusion">1. 一页结论</h2>
+<div class="table-wrap"><table><thead><tr><th>问题</th><th>建议结论</th></tr></thead><tbody>
+<tr><td>要不要做？</td><td><strong>要做，但不应照搬竞品名词或一次性建设大而全图谱。</strong>应以高价值归因场景为牵引，把GraphRAG作为L4可信资产匹配的增强能力，把行为特征和洞察作为有版本、血缘、权限与证据的受控资产。</td></tr>
+<tr><td>现在就做完整平台吗？</td><td>不建议。先做4—6周场景验证，再做8—12周产品化；未达到路径准确率、事实一致性和权限门禁时，不进入生产回答。</td></tr>
+<tr><td>我们的差异化是什么？</td><td>不是“也有图谱”，而是<strong>图谱召回不直接获得执行权</strong>；所有候选路径仍进入已发布资产、权限快照、SQL AST、成本门禁、成功事实和审计链。</td></tr>
+<tr><td>客户执意要求怎么办？</td><td>把模糊诉求拆成场景、数据、质量和验收四张清单；提供“演示增强、受控POC、生产产品化”三级方案，明确范围、前置条件和不承诺项。</td></tr>
+</tbody></table></div>
+<blockquote><strong>推荐定位：</strong>可信图增强分析（Trusted Graph-Augmented Analytics），而不是开放式GraphRAG直接生成并执行SQL。</blockquote>
+
+<h2 id="swot">2. 竞品差异能力的优劣势分析</h2>
+<div class="table-wrap"><table><thead><tr><th>能力</th><th>主要优势</th><th>主要劣势/风险</th><th>我们的应对</th></tr></thead><tbody>
+<tr><td>Schema GraphRAG</td><td>显式表达表、字段、指标和JOIN关系；复杂Schema下有机会提高召回和路径解释能力。</td><td>图谱建设与持续更新成本高；错误边会稳定放大错误JOIN；图检索命中不代表业务口径正确。</td><td>仅作为候选召回器；路径必须绑定已发布资产版本，通过规则校验、权限和执行门禁。</td></tr>
+<tr><td>行为特征层</td><td>把客户、交易、设备、渠道的动态变化纳入经营与风险分析，可支持更深归因。</td><td>特征口径、观察窗、时效和泄漏风险复杂；特征容易被误当成因果关系。</td><td>建立Feature Contract，强制记录定义、窗口、粒度、血缘、所有者、敏感级别和有效期。</td></tr>
+<tr><td>洞察层</td><td>复用风险分、倾向分、异常标签，缩短从查询到行动建议的距离。</td><td>模型版本漂移、置信度缺失、标签过期和解释不充分会导致误导决策。</td><td>建立Insight Contract；答案显式区分“执行事实、模型推断、建议”，推断不得伪装成事实。</td></tr>
+<tr><td>路径复用</td><td>提升多轮追问体验，减少重复规划和执行。</td><td>权限、口径、数据日期或模型版本变化后复用旧路径可能越权或失真。</td><td>复用键包含权限快照、配置版本、指标版本、图谱版本、数据时点和特征版本，任一变化即失效。</td></tr>
+<tr><td>应用生成</td><td>结果可沉淀为页面、看板或下钻应用，业务感知价值强。</td><td>“生成页面”容易与“可运营应用”混淆；后续权限、版本、维护和回滚成本较高。</td><td>先生成受控分析视图；只有经过所有者确认、审批发布和回归测试后才升级为长期应用。</td></tr>
+</tbody></table></div>
+
+<h2 id="principles">3. 建设原则</h2>
+<ol><li><strong>场景先于平台：</strong>先选AUM下降归因、客户流失解释、异常交易下钻等高价值问题，不先建设全行全域知识图谱。</li><li><strong>图只负责召回与解释：</strong>GraphRAG输出候选节点、候选边和解释路径，不直接签发SQL或执行权限。</li><li><strong>资产必须可治理：</strong>图节点、特征、洞察均须有所有者、版本、血缘、权限、质量状态和发布状态。</li><li><strong>事实与推断分离：</strong>查询结果是事实；相关性、模型评分和归因判断属于推断；行动建议属于建议。</li><li><strong>安全底座不降级：</strong>继续使用权限快照、逐节点复核、参数化查询、AST、范围、成本、审计和成功事实门禁。</li><li><strong>可回退：</strong>图服务不可用或置信度不足时，回退至当前已发布指标/模板链路，不能静默扩大查询范围。</li></ol>
+
+<h2 id="architecture">4. 建议目标架构</h2>
+<pre><code>用户问题
+  ↓
+L2/L3：领域、对象、目标、指标、时间、分析类型
+  ↓
+L4：混合可信资产匹配
+  ├─ 现有指标/字段/模板确定性匹配
+  ├─ Schema GraphRAG候选子图召回
+  └─ Feature / Insight目录候选召回
+  ↓
+候选路径裁决
+  ├─ 资产是否已发布、版本是否有效
+  ├─ 关系方向、粒度、时间和口径是否兼容
+  ├─ 权限快照是否覆盖每个节点/字段
+  └─ 置信度不足则澄清或回退
+  ↓
+L5：生成受控SQL/API/计算DAG
+  ↓
+L6：AST、范围、成本、执行、事实记录
+  ↓
+L7：事实 + 推断 + 建议分区回答，并展示证据路径</code></pre>
+<h3>4.1 最小数据模型</h3>
+<div class="table-wrap"><table><thead><tr><th>资产</th><th>必须字段</th></tr></thead><tbody>
+<tr><td>Graph Node</td><td>node_id、type、domain、asset_version、owner、classification、status</td></tr>
+<tr><td>Graph Edge</td><td>source、target、relation、direction、join_keys、cardinality、effective_time、confidence、evidence</td></tr>
+<tr><td>Feature Contract</td><td>feature_id、entity、grain、definition、window、source、freshness、owner、permission、version</td></tr>
+<tr><td>Insight Contract</td><td>insight_id、model_version、input_features、score/label、confidence、validity、explanation、approval</td></tr>
+<tr><td>Retrieval Evidence</td><td>query_id、graph_version、candidate_path、score、rejection_reason、selected_assets</td></tr>
+</tbody></table></div>
+
+<h2 id="roadmap">5. 分阶段建设路线</h2>
+<div class="table-wrap"><table><thead><tr><th>阶段</th><th>周期建议</th><th>范围</th><th>退出条件</th></tr></thead><tbody>
+<tr><td><strong>P0 需求澄清</strong></td><td>1—2周</td><td>选1个领域、2—3个黄金场景；盘点Schema、指标、JOIN、特征、权限和真实问句。</td><td>客户确认问题清单、数据清单、口径、权限和验收集。</td></tr>
+<tr><td><strong>P1 受控POC</strong></td><td>4—6周</td><td>20—50张核心表、30—80个指标、有限关系图；只读、单域；实现候选子图、路径解释和回退。</td><td>黄金问题路径正确率≥90%，零越权，答案只引用成功事实。</td></tr>
+<tr><td><strong>P2 产品化</strong></td><td>8—12周</td><td>图谱版本发布、增量同步、质量看板、Feature/Insight Contract、监控与回归。</td><td>变更可审计、可回滚；性能和稳定性达到客户基线。</td></tr>
+<tr><td><strong>P3 规模化</strong></td><td>按域推进</td><td>扩展领域能力包、跨域授权、异构节点、报告和分析智能体。</td><td>逐域验收，不以一次性“大图谱完成”作为目标。</td></tr>
+</tbody></table></div>
+
+<h2 id="customer">6. 客户执意要求补充时的应对</h2>
+<h3>6.1 先把“必须有GraphRAG”转成可验收需求</h3>
+<p>不要直接承诺技术名词。要求客户共同确认以下五项：</p>
+<ul><li><strong>业务问题：</strong>哪些问题当前因错表、错字段、错JOIN或缺少行为解释而失败？</li><li><strong>数据边界：</strong>涉及哪些系统、表、指标、事件、特征和模型输出？</li><li><strong>业务口径：</strong>谁是指标、关系、特征和洞察的责任人？</li><li><strong>安全边界：</strong>哪些节点可被模型检索，哪些只能由执行层使用？</li><li><strong>验收标准：</strong>路径正确率、问数正确率、越权率、延迟和人工维护成本分别是多少？</li></ul>
+<h3>6.2 提供三级商务与交付选项</h3>
+<div class="table-wrap"><table><thead><tr><th>选项</th><th>客户获得</th><th>边界</th><th>适用情况</th></tr></thead><tbody>
+<tr><td>A 演示增强</td><td>预置图谱、路径可视化、有限行为标签和固定场景</td><td>脱敏数据，不宣称生产泛化</td><td>客户需要快速汇报或概念验证</td></tr>
+<tr><td>B 受控POC（推荐）</td><td>客户测试环境真实Schema、黄金问题评测、权限和路径审计</td><td>限定单域、只读、有限表和指标</td><td>客户需要验证技术价值</td></tr>
+<tr><td>C 生产产品化</td><td>图谱治理、版本发布、特征/洞察目录、监控、回滚和运维</td><td>需单独立项、数据治理投入和安全验收</td><td>POC达标且客户能提供资产责任人</td></tr>
+</tbody></table></div>
+<h3>6.3 建议客户沟通话术</h3>
+<blockquote>我们可以补充GraphRAG、行为特征和洞察资产，但不会让图检索结果绕过现有权限与SQL安全链路。建议先以贵行两个高价值归因场景做受控POC，用真实Schema和黄金问题证明路径正确率、业务正确率及零越权，再决定生产规模。这样既满足能力要求，也避免投入一个难维护、无法验收的大图谱。</blockquote>
+<h3>6.4 必须写入范围说明的不承诺项</h3>
+<ul><li>不承诺模型自动发现的所有关系均为正确业务关系；</li><li>不承诺相关性特征能够自动证明因果关系；</li><li>不允许未发布图节点、特征或模型洞察直接进入生产回答；</li><li>不允许外部模型直接连接数据库或读取权限元数据原文；</li><li>不把POC准确率直接等同于全行全域生产准确率；</li><li>客户未提供资产责任人、口径和黄金集时，不承诺生产验收日期。</li></ul>
+
+<h2 id="delivery">7. 最小可交付包</h2>
+<div class="table-wrap"><table><thead><tr><th>类别</th><th>交付物</th></tr></thead><tbody>
+<tr><td>需求</td><td>场景清单、黄金问题集、反例集、数据和权限边界</td></tr><tr><td>资产</td><td>Schema图谱、指标关系、JOIN证据、Feature/Insight目录</td></tr><tr><td>服务</td><td>混合检索、候选子图、路径裁决、版本与回退接口</td></tr><tr><td>执行</td><td>与L4/L5/L6集成、权限复核、AST与成本门禁</td></tr><tr><td>界面</td><td>命中资产、关系路径、置信度、事实/推断标识和未核实项</td></tr><tr><td>治理</td><td>审批发布、变更审计、质量看板、回归测试和回滚手册</td></tr></tbody></table></div>
+
+<h2 id="acceptance">8. 建议验收指标</h2>
+<div class="table-wrap"><table><thead><tr><th>指标</th><th>POC建议门槛</th><th>说明</th></tr></thead><tbody>
+<tr><td>节点召回率@K</td><td>≥95%</td><td>黄金资产是否进入候选集</td></tr><tr><td>路径正确率</td><td>≥90%</td><td>表、字段、JOIN方向、粒度和指标依赖整体正确</td></tr><tr><td>最终问数正确率</td><td>≥90%</td><td>以客户签字黄金问题为准，不只测SQL语法</td></tr><tr><td>权限越界</td><td>0</td><td>正常、混合权限、多轮和角色切换均需覆盖</td></tr><tr><td>事实引用一致率</td><td>100%</td><td>回答数值必须来自成功执行事实</td></tr><tr><td>不可回答识别率</td><td>≥95%</td><td>证据不足时澄清或拒答，而不是猜测</td></tr><tr><td>图谱变更可追溯率</td><td>100%</td><td>边和节点变更有操作者、版本、原因和回滚点</td></tr><tr><td>P95额外延迟</td><td>客户确认</td><td>分别记录图检索、裁决和执行开销</td></tr></tbody></table></div>
+
+<h2 id="risk">9. 主要风险与控制</h2>
+<div class="table-wrap"><table><thead><tr><th>风险</th><th>预警信号</th><th>控制措施</th></tr></thead><tbody>
+<tr><td>范围失控</td><td>要求一次覆盖全行所有系统</td><td>按领域和场景拆分，设置节点/边/指标上限</td></tr><tr><td>图谱污染</td><td>自动抽取关系未经业务确认</td><td>候选、审核、发布三级状态；生产只读已发布版本</td></tr><tr><td>伪因果</td><td>把相关特征描述为下降原因</td><td>事实/相关性/因果/建议四类标签，因果结论需业务规则或验证方法</td></tr><tr><td>模型漂移</td><td>同一客户评分随模型版本变化</td><td>记录模型和特征版本、有效期及监控阈值</td></tr><tr><td>越权泄露</td><td>候选图暴露无权资产名称</td><td>检索前过滤可见目录，执行前再按快照逐节点校验</td></tr><tr><td>无法运营</td><td>无人维护指标、关系和特征</td><td>每类资产必须绑定业务/数据所有者和SLA</td></tr></tbody></table></div>
+
+<h2 id="decision">10. 决策建议</h2>
+<p><strong>建议批准“受控POC”，不建议立即承诺完整生产GraphRAG平台。</strong></p>
+<ol><li>选择一个客户价值清晰、数据相对成熟的归因场景；</li><li>限定单域、只读、20—50张表及2—3个端到端问题；</li><li>复用现有七层、权限、SQL安全、任务和证据链，不另建旁路系统；</li><li>先证明路径正确率、最终正确率、零越权及可回退，再决定产品化；</li><li>产品化时把图谱、特征和洞察纳入统一审批、发布、版本、审计与回滚。</li></ol>
+<blockquote><strong>最终立场：</strong>补齐能力，但必须把竞品的“图谱能力”转化为我们的“可信资产匹配增强”；补齐行为洞察，但必须把每项洞察变成可追溯、可失效、可授权的证据资产。</blockquote>
+</article><footer>AskData 竞品分析中心 · 内部策略与客户应对参考</footer></main></div></body></html>

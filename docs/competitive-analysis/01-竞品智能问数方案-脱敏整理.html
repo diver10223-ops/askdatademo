@@ -1,0 +1,146 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>竞品生成式应用与智能问数方案（脱敏整理）</title><link rel="stylesheet" href="competitive-analysis.css"></head><body>
+<header class="topbar"><a class="brand" href="index.html"><span>AD</span><b>竞品分析中心</b></a><nav><a class="" href="index.html">总览</a><a class="active" href="01-竞品智能问数方案-脱敏整理.html">竞品方案</a><a class="" href="02-竞品方案与AskData-V2对比分析.html">V2 对比</a><a class="" href="03-竞品方案与AskData-V3规划对比分析.html">V3 规划对比</a><a class="" href="04-GraphRAG行为洞察差异应对方案.html">差异应对方案</a></nav></header>
+<div class="page"><aside><div class="aside-label">本页目录</div><a class="lv2" href="#s-1">1. 方案定位</a><a class="lv2" href="#s-2">2. 行业典型问数链路</a><a class="lv2" href="#s-3">3. 行业痛点判断</a><a class="lv3" href="#s-4">3.1 理解和关联不稳定</a><a class="lv3" href="#s-5">3.2 权限和合规执行不稳定</a><a class="lv2" href="#s-6">4. 三类核心亮点</a><a class="lv3" href="#s-7">4.1 多层级意图识别</a><a class="lv3" href="#s-8">4.2 Schema GraphRAG数据知识底座</a><a class="lv3" href="#s-9">4.3 元数据驱动应用构建</a><a class="lv2" href="#s-10">5. 五层数据知识资产</a><a class="lv2" href="#s-11">6. 银行场景复杂性</a><a class="lv2" href="#s-12">7. 典型实施路径</a><a class="lv2" href="#s-13">8. 受控分析示例</a><a class="lv2" href="#s-14">9. 与常规方案的自我定位</a><a class="lv2" href="#s-15">10. 界面与总体架构</a><a class="lv3" href="#s-16">10.1 用户界面</a><a class="lv3" href="#s-17">10.2 总体架构</a><a class="lv2" href="#s-18">11. 需进一步验证的关键问题</a></aside><main>
+<section class="hero"><div class="kicker">COMPETITOR PROFILE</div><h1>竞品生成式应用与智能问数方案（脱敏整理）</h1><p>脱敏重构竞品的产品定位、核心能力、实施路径与待验证问题。</p><div class="meta"><span>银行智能问数</span><span>内部决策材料</span><span>版本 2026.08</span></div></section>
+<article><h1>竞品生成式应用与智能问数方案（脱敏整理）</h1>
+<blockquote>来源：用户提供的15页竞品方案文本。本文仅做结构化整理；已移除或泛化企业名称、产品名称、品牌标识和具体供应商名称，不代表对其实际交付能力的验证。</blockquote>
+<h2 id="s-1">1. 方案定位</h2>
+<p>面向银行结构化数据场景，以自然语言问数为入口，把业务语义、指标口径、数据结构、行为特征和模型洞察组织为数据知识资产，并由低代码/应用平台完成权限约束下的查询、展示和审计。</p>
+<p>核心主张不是让模型直接交付一段SQL，而是生成符合权限治理规范的受控查询应用、看板或下钻页面。</p>
+<h2 id="s-2">2. 行业典型问数链路</h2>
+<pre><code class="language-text">意图识别与分流
+→ Schema / Semantic Linking
+→ 查询规划
+→ SQL / MQL / 查询任务生成
+→ 执行校验与结果展示</code></pre>
+<p>各阶段分别处理：</p>
+<ol>
+<li>查询、聚合、TopN等问题类型；</li>
+<li>表、字段、指标等语义资产；</li>
+<li>SELECT、JOIN、WHERE等查询结构；</li>
+<li>Prompt、模板或Agent驱动的任务生成；</li>
+<li>校验、图表和报表输出。</li>
+</ol>
+<p>方案认为，无论采用Text-to-SQL、指标语义层还是Agent自校验路线，主要难点仍是意图识别、Schema Linking、多表关联和权限执行。</p>
+<h2 id="s-3">3. 行业痛点判断</h2>
+<h3 id="s-4">3.1 理解和关联不稳定</h3>
+<ul>
+<li>业务问题表达模糊；</li>
+<li>容易选错表或字段；</li>
+<li>多表长关联链路容易出错；</li>
+<li>单纯依靠向量相似度容易产生偏差。</li>
+</ul>
+<h3 id="s-5">3.2 权限和合规执行不稳定</h3>
+<ul>
+<li>SQL技术正确不等于业务含义正确；</li>
+<li>字段权限与数据范围复杂；</li>
+<li>脱敏及审计要求高；</li>
+<li>银行场景的错误与越权风险更高。</li>
+</ul>
+<p>方案将核心难点归纳为：<strong>理解准确性 + 执行合规性</strong>。</p>
+<h2 id="s-6">4. 三类核心亮点</h2>
+<h3 id="s-7">4.1 多层级意图识别</h3>
+<p>在问数前预加工业务对象、行为和特征，将自然语言问题拆解为五级意图：</p>
+<div class="table-wrap"><table><thead><tr><th>层级</th><th>识别内容</th><th>示例</th></tr></thead><tbody>
+<tr><td>L1</td><td>问题类型</td><td>查询、趋势、对比、归因、异常、预测</td></tr>
+<tr><td>L2</td><td>业务对象</td><td>客户、账户、交易、产品、机构、设备、渠道</td></tr>
+<tr><td>L3</td><td>业务目标</td><td>风险上升、客户流失、AUM下降、转化下降</td></tr>
+<tr><td>L4</td><td>分析路径</td><td>指标、维度、时间、下钻、对比</td></tr>
+<tr><td>L5</td><td>输出形式</td><td>图表、看板、客户清单、风险解释、行动建议</td></tr>
+</tbody></table></div>
+<p>这里的L1—L5是<strong>意图分类维度</strong>，不是端到端系统执行层级。</p>
+<h3 id="s-8">4.2 Schema GraphRAG数据知识底座</h3>
+<p>将语言匹配提升为图节点匹配与关系路径推理。图谱候选节点包括表、字段、指标、业务对象、行为事件和模型特征；候选关系包括主外键、逻辑JOIN、指标依赖、业务对象映射、同义词和数据血缘。</p>
+<p>其目标包括：</p>
+<ul>
+<li>减少错表和错字段；</li>
+<li>减少错误JOIN；</li>
+<li>解释指标依赖与数据血缘；</li>
+<li>在多轮追问中复用分析因子和路径；</li>
+<li>为后续图模型学习积累结构化样本。</li>
+</ul>
+<p>数据权限元数据可以属于整体数据知识资产，但不直接进入供大模型检索的Schema GraphRAG链路，而由受控执行层使用。</p>
+<h3 id="s-9">4.3 元数据驱动应用构建</h3>
+<pre><code class="language-text">意图识别结果 + 权限定义
+→ 元数据驱动应用平台
+→ 受控查询应用 / 看板 / 下钻页面</code></pre>
+<p>平台能力覆盖身份认证、应用权限、数据权限、字段权限、数据范围、查询组织、脱敏展示和日志审计。</p>
+<h2 id="s-10">5. 五层数据知识资产</h2>
+<div class="table-wrap"><table><thead><tr><th>层次</th><th>主要资产</th></tr></thead><tbody>
+<tr><td>Schema Layer</td><td>表、字段、主外键、逻辑JOIN、数据血缘</td></tr>
+<tr><td>Business Semantic Layer</td><td>业务对象、维度、同义词、分析主题</td></tr>
+<tr><td>Metric Layer</td><td>经营指标、风险指标、客户经营指标、反欺诈监控指标</td></tr>
+<tr><td>Feature Layer</td><td>客户、交易、设备和渠道的行为特征</td></tr>
+<tr><td>Insight Layer</td><td>风险分、流失/转化倾向、异常标签、客户状态变化</td></tr>
+</tbody></table></div>
+<p>权限、脱敏规则和执行控制不属于上述知识层，由受控执行平台管理。</p>
+<h2 id="s-11">6. 银行场景复杂性</h2>
+<ol>
+<li>同一指标存在不同业务口径；</li>
+<li>多系统、多表、多字段和多关联路径并存；</li>
+<li>总行、分行、部门和客户经理的数据边界不同；</li>
+<li>客户、交易、设备和渠道行为持续变化；</li>
+<li>问数过程、数据路径与权限执行均须追溯；</li>
+<li>用户表达的是经营或风险目标，而非数据库问题。</li>
+</ol>
+<h2 id="s-12">7. 典型实施路径</h2>
+<pre><code class="language-text">选定业务场景
+→ 注册结构化数据源
+→ 梳理业务对象、指标、字段和关系
+→ 配置权限定义
+→ 构建Schema GraphRAG
+→ 验证高频问数
+→ 生成受控查询应用
+→ 沉淀历史链路和图学习样本</code></pre>
+<p>实施目标是逐步形成可治理、可复用、可演进的查询应用，而不是一次性直接生成SQL。</p>
+<h2 id="s-13">8. 受控分析示例</h2>
+<p>用户问题：“为什么本月AUM下降了？”</p>
+<ol>
+<li>识别问题类型为归因，指标为AUM，时间为本月对比上月；</li>
+<li>识别客户、产品、机构等对象，选用标准经营指标口径及分析维度；</li>
+<li>从Schema GraphRAG取得候选表、字段、JOIN和指标依赖路径；</li>
+<li>调用受控数据访问接口，执行身份及应用权限硬性校验；</li>
+<li>校验查询任务规则并执行，记录日志和审计事实；</li>
+<li>输出指标变化、主要贡献机构/产品、指标解释、归因路径、图表和可追溯查询链路；</li>
+<li>对“具体是哪些客户”“哪个产品贡献最大”等追问复用路径和继承上下文。</li>
+</ol>
+<p>模型负责理解与规划，平台负责权限、校验、执行和审计。</p>
+<h2 id="s-14">9. 与常规方案的自我定位</h2>
+<div class="table-wrap"><table><thead><tr><th>能力</th><th>普通Text-to-SQL</th><th>BI Copilot</th><th>竞品方案</th></tr></thead><tbody>
+<tr><td>业务目标理解</td><td>字面意图</td><td>BI语义层增强</td><td>L1—L5多层级意图</td></tr>
+<tr><td>指标口径</td><td>Prompt或文档</td><td>既有BI模型</td><td>Metric Layer统一口径</td></tr>
+<tr><td>多表关联</td><td>易错表/错JOIN</td><td>受BI模型边界限制</td><td>GraphRAG路径推理</td></tr>
+<tr><td>权限脱敏</td><td>执行后补控制</td><td>BI平台权限</td><td>查询生成前注入权限定义</td></tr>
+<tr><td>多轮追问</td><td>主要依赖上下文</td><td>部分支持</td><td>路径复用与对象/指标继承</td></tr>
+<tr><td>审计追溯</td><td>弱</td><td>中</td><td>问题、路径、执行全链路</td></tr>
+<tr><td>最终交付</td><td>SQL或结果</td><td>图表或分析卡片</td><td>受控查询应用、看板或下钻页</td></tr>
+</tbody></table></div>
+<h2 id="s-15">10. 界面与总体架构</h2>
+<h3 id="s-16">10.1 用户界面</h3>
+<ul>
+<li>左侧为对话沟通区，展示问答、特征分析、趋势洞察和补充视角；</li>
+<li>右侧为折线图等可视化组件；</li>
+<li>右侧同时提供AI分析解释和趋势标注。</li>
+</ul>
+<h3 id="s-17">10.2 总体架构</h3>
+<p>架构从上到下包括：</p>
+<ol>
+<li>AI基础模型及体验/API管理；</li>
+<li>智能应用管理，包括应用定义、检索、内容审查、引用归属、用户背景、提示词、多模态和函数定义；</li>
+<li>通用AI数据连接与工作流引擎；</li>
+<li>模型、敏感词、知识库等AI数据基础管理；</li>
+<li>组织部门、统一用户、受控数据访问、统一权限和统一元数据；</li>
+<li>多种内外部基础模型适配。</li>
+</ol>
+<h2 id="s-18">11. 需进一步验证的关键问题</h2>
+<p>方案材料表达了目标架构，但未提供足够证据确认以下能力的生产成熟度：</p>
+<ul>
+<li>GraphRAG图谱如何建模、更新、评测和纠错；</li>
+<li>Feature/Insight Layer是否为现成交付能力；</li>
+<li>“受控查询应用”是临时页面、固定模板实例，还是可独立发布维护的应用；</li>
+<li>多表路径推理的黄金集准确率及失败处置；</li>
+<li>SQL AST、成本、扫描量和超时门禁的实现细节；</li>
+<li>多任务失败、部分成功、取消、重试和恢复机制；</li>
+<li>权限快照、配置版本和多轮事实复用的失效规则；</li>
+<li>客户环境中身份、密钥、审计、防篡改和灾备的验收证据。</li>
+</ul></article><footer>AskData 竞品分析中心 · 本材料用于内部产品与方案决策</footer></main></div></body></html>
