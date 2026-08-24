@@ -1,0 +1,93 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>竞品智能问数方案与AskData V2对比分析</title><link rel="stylesheet" href="competitive-analysis.css"></head><body>
+<header class="topbar"><a class="brand" href="index.html"><span>AD</span><b>竞品分析中心</b></a><nav><a class="" href="index.html">总览</a><a class="" href="01-竞品智能问数方案-脱敏整理.html">竞品方案</a><a class="active" href="02-竞品方案与AskData-V2对比分析.html">V2 对比</a><a class="" href="03-竞品方案与AskData-V3规划对比分析.html">V3 规划对比</a><a class="" href="04-GraphRAG行为洞察差异应对方案.html">差异应对方案</a></nav></header>
+<div class="page"><aside><div class="aside-label">本页目录</div><a class="lv2" href="#s-1">1. 执行摘要</a><a class="lv2" href="#s-2">2. 共同能力</a><a class="lv2" href="#s-3">3. 逐项对比</a><a class="lv2" href="#s-4">4. 竞品相对V2的优势</a><a class="lv3" href="#s-5">4.1 Schema GraphRAG</a><a class="lv3" href="#s-6">4.2 行为特征与模型洞察</a><a class="lv3" href="#s-7">4.3 受控应用生成</a><a class="lv2" href="#s-8">5. V2相对竞品的优势</a><a class="lv3" href="#s-9">5.1 七层确定性责任链</a><a class="lv3" href="#s-10">5.2 多任务DAG和生命周期</a><a class="lv3" href="#s-11">5.3 节点级权限与SQL门禁</a><a class="lv3" href="#s-12">5.4 成功事实裁决</a><a class="lv3" href="#s-13">5.5 企业控制面</a><a class="lv2" href="#s-14">6. 差异量化</a><a class="lv2" href="#s-15">7. 竞争定位建议</a><a class="lv2" href="#s-16">8. 对竞品的验证清单</a></aside><main>
+<section class="hero"><div class="kicker">CURRENT BASELINE</div><h1>竞品智能问数方案与AskData V2对比分析</h1><p>基于当前V2产品基线，识别真实重合能力、短板与可证明的工程优势。</p><div class="meta"><span>银行智能问数</span><span>内部决策材料</span><span>版本 2026.08</span></div></section>
+<article><h1>竞品智能问数方案与AskData V2对比分析</h1>
+<blockquote>对比基线：竞品15页脱敏方案与仓库中的AskData V2.0/V2.1产品基线。竞品结论来自方案文本，不等同于已验证的生产能力；V2后续版本规划不计入V2当前能力。</blockquote>
+<h2 id="s-1">1. 执行摘要</h2>
+<p>去除品牌信息后，双方属于同一“企业级受控智能问数”赛道：产品定位、主链路、指标治理、权限安全和审计理念高度重合。</p>
+<ul>
+<li><strong>总体方案重合度：约75%—85%。</strong></li>
+<li><strong>实质差异度：约15%—25%。</strong></li>
+<li>竞品主要差异：Schema GraphRAG、行为事件Feature/Insight Layer、受控查询应用生成。</li>
+<li>AskData V2主要差异：七层确定性执行、多任务DAG、节点级权限与安全门禁、事实裁决、失败恢复和企业控制面治理。</li>
+</ul>
+<h2 id="s-2">2. 共同能力</h2>
+<p>双方都覆盖：</p>
+<ol>
+<li>自然语言理解与意图识别；</li>
+<li>指标、维度、表和字段等语义资产映射；</li>
+<li>统一指标口径和同义词；</li>
+<li>受约束查询生成与结构化数据源执行；</li>
+<li>身份、角色、机构、指标、表和字段权限；</li>
+<li>只读查询、脱敏、日志与审计；</li>
+<li>文本、表格、图表及多轮追问；</li>
+<li>模型负责理解/表达，确定性平台负责权限、执行和最终事实。</li>
+</ol>
+<h2 id="s-3">3. 逐项对比</h2>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>竞品方案</th><th>AskData V2</th><th>判断</th></tr></thead><tbody>
+<tr><td>产品定位</td><td>银行结构化数据生成式应用与问数</td><td>企业安全可信自然语言问数</td><td>高度相同</td></tr>
+<tr><td>主流程</td><td>意图→GraphRAG→规划→生成→执行</td><td>L1—L7理解→规划→资产→安全执行→事实回答</td><td>同一路线，不同组织方式</td></tr>
+<tr><td>意图模型</td><td>问题类型、对象、目标、路径、输出五级分类</td><td>七层执行中完成参数抽取、场景识别和语义计划</td><td>竞品业务标签更突出，V2执行职责更清晰</td></tr>
+<tr><td>指标语义</td><td>Business Semantic + Metric Layer</td><td>指标、维度、口径、同义词、映射和版本发布</td><td>基本相同</td></tr>
+<tr><td>Schema关联</td><td>图节点与关系路径推理</td><td>已发布资产、字段映射和受控SQL模板</td><td>竞品纸面领先</td></tr>
+<tr><td>行为特征</td><td>Feature Layer、行为事件模型</td><td>非V2核心能力</td><td>竞品差异</td></tr>
+<tr><td>模型洞察</td><td>Insight Layer风险/流失/转化/异常标签</td><td>以查询成功事实与经营指标解释为主</td><td>竞品差异</td></tr>
+<tr><td>查询生成</td><td>受控查询应用生成</td><td>已发布SQL模板、参数化SQL和受控计算</td><td>交付形态不同</td></tr>
+<tr><td>SQL安全</td><td>权限及受控执行原则</td><td>AST、白名单、谓词、行数、时间、复杂度、扫描量门禁</td><td>V2更明确</td></tr>
+<tr><td>权限</td><td>身份、应用、数据、字段、范围</td><td>冻结权限快照且逐节点复核</td><td>V2规则更严格</td></tr>
+<tr><td>多任务</td><td>材料未系统描述DAG</td><td>计划版本、依赖、串并行、关键性、确认、取消、重试、恢复</td><td>V2明显更强</td></tr>
+<tr><td>事实一致性</td><td>执行校验与结果回溯</td><td>L7仅引用成功事实，披露未核实项</td><td>V2更明确</td></tr>
+<tr><td>失败处理</td><td>材料未展开</td><td>SUCCESS/PARTIAL/FAILED/CANCELLED及关键节点裁决</td><td>V2明显更强</td></tr>
+<tr><td>管理治理</td><td>低代码平台、元数据、权限和审计</td><td>Java控制面、Python执行面、审批发布回滚及唯一写入者</td><td>V2工程边界更完整</td></tr>
+<tr><td>最终输出</td><td>查询应用、看板、下钻页</td><td>结论、证据、表格、图表、引导和驾驶舱</td><td>竞品更偏应用生成</td></tr>
+</tbody></table></div>
+<h2 id="s-4">4. 竞品相对V2的优势</h2>
+<h3 id="s-5">4.1 Schema GraphRAG</h3>
+<p>V2具备指标、维度、表、字段、同义词和血缘等资产，但当前资产匹配主要依赖已发布映射和查询模板；V2.1还明确不建设知识图谱。竞品提出图节点检索与JOIN/指标依赖路径推理，是最清晰的架构差异。</p>
+<h3 id="s-6">4.2 行为特征与模型洞察</h3>
+<p>竞品把客户、交易、设备和渠道行为特征，以及风险分、流失倾向、转化倾向和异常标签纳入问数底座。V2以结构化经营指标和受控查询事实为主，尚未形成独立Feature/Insight Layer。</p>
+<h3 id="s-7">4.3 受控应用生成</h3>
+<p>竞品声称最终生成权限约束下的查询应用、看板或下钻页面。V2当前主要交付问数答案、图表、证据、执行轨迹和驾驶舱导航，并未把动态生成可发布低代码应用作为核心能力。</p>
+<h2 id="s-8">5. V2相对竞品的优势</h2>
+<h3 id="s-9">5.1 七层确定性责任链</h3>
+<p>V2明确区分请求接入、问题理解、意图参数、语义规划、资产映射、安全执行和事实回答，并规定模型不裁决权限、不绕过SQL安全、不脱离结果作答。</p>
+<h3 id="s-10">5.2 多任务DAG和生命周期</h3>
+<p>V2.1可以把一个综合问题拆分为独立可验证节点，记录依赖、关键性、输入输出Schema、计划版本和用户确认；执行支持串并行、排队、取消、定点重试、恢复和事实复用失效检查。</p>
+<h3 id="s-11">5.3 节点级权限与SQL门禁</h3>
+<p>权限在请求开始时冻结，并在每个节点对指标、机构、表、字段和数据范围再次校验。SQL还必须通过AST只读、参数绑定、时间范围、结果行数、复杂度和扫描成本检查。</p>
+<h3 id="s-12">5.4 成功事实裁决</h3>
+<p>V2区分成功、部分成功、失败和取消。关键事实失败时禁止输出完整排名、完整归因或“整体正常”等结论；L7只接收成功事实并显式披露未核实项。</p>
+<h3 id="s-13">5.5 企业控制面</h3>
+<p>V2冻结Java控制面与Python执行面的职责、数据所有权和调用方向，覆盖身份权限、配置审批、发布回滚、审计、幂等、SSE、取消及迁移，降低权限漂移和无约束双写风险。</p>
+<h2 id="s-14">6. 差异量化</h2>
+<div class="table-wrap"><table><thead><tr><th>能力组</th><th>建议权重</th><th>重合度</th><th>说明</th></tr></thead><tbody>
+<tr><td>产品定位与场景</td><td>15%</td><td>90%</td><td>均面向银行/企业受控问数</td></tr>
+<tr><td>语义与指标资产</td><td>20%</td><td>80%</td><td>竞品增加五级意图、特征和洞察</td></tr>
+<tr><td>查询与数据关联</td><td>15%</td><td>65%</td><td>GraphRAG与模板映射路线不同</td></tr>
+<tr><td>权限、安全与审计</td><td>20%</td><td>90%</td><td>理念相同，V2控制细节更多</td></tr>
+<tr><td>任务执行与可靠性</td><td>20%</td><td>65%</td><td>V2 DAG和失败裁决更完整</td></tr>
+<tr><td>输出与应用形态</td><td>10%</td><td>55%</td><td>应用生成与问数结果存在差异</td></tr>
+<tr><td><strong>加权结果</strong></td><td><strong>100%</strong></td><td><strong>约77%</strong></td><td>宜表述为75%—85%重合</td></tr>
+</tbody></table></div>
+<h2 id="s-15">7. 竞争定位建议</h2>
+<p>不宜使用“比竞品更会生成SQL”作为卖点。建议强调：</p>
+<ol>
+<li><strong>可验证任务执行系统</strong>：复杂问题形成可确认、可调度、可恢复的DAG；</li>
+<li><strong>权限贯穿每个节点</strong>：入口、规划、资产、SQL、执行、重试和复用均不越界；</li>
+<li><strong>成功事实驱动回答</strong>：模型不能补齐失败事实；</li>
+<li><strong>SQL结构与成本双门禁</strong>：不仅判断只读，还控制范围和资源消耗；</li>
+<li><strong>控制面与执行面分权</strong>：审批、发布、回滚、审计和运行事实有明确所有者。</li>
+</ol>
+<h2 id="s-16">8. 对竞品的验证清单</h2>
+<p>正式竞争评估前，应要求演示或材料证明：</p>
+<ul>
+<li>GraphRAG的图谱构建、增量更新、冲突处理和黄金集准确率；</li>
+<li>错表、错字段和错JOIN的量化对比；</li>
+<li>Feature/Insight Layer是产品能力还是项目定制；</li>
+<li>查询应用能否独立发布、维护、回滚和重新授权；</li>
+<li>多任务部分失败、取消、重试和服务重启后的行为；</li>
+<li>权限或口径版本变化后，多轮路径复用如何失效；</li>
+<li>SQL AST、成本、扫描量、超时和防注入的测试证据；</li>
+<li>客户身份、密钥、审计防篡改和灾备的交付边界。</li>
+</ul></article><footer>AskData 竞品分析中心 · 本材料用于内部产品与方案决策</footer></main></div></body></html>
